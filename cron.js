@@ -87,7 +87,7 @@ class CronManager {
                             console.debug(`... Succeeded to execute job ${jobId}`);
                         }).catch(error => {
                             // TODO: generate notification
-                            console.debug(`... Failed to execute job ${jobId} (error)`);
+                            console.debug(`... Failed to execute job ${jobId} (${error})`);
                         });
                     }
 
