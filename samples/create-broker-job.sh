@@ -1,0 +1,93 @@
+#!/bin/bash
+
+USAGE="$0 -d <dojot-url> -u <dojot-user> -p <dojot-password>"
+
+while getopts "d:u:p:" options; do
+  case $options in
+    d ) DOJOT_URL=$OPTARG;;
+    u ) DOJOT_USERNAME=$OPTARG;;
+    p ) DOJOT_PASSWD=$OPTARG;;
+    \? ) echo ${USAGE}
+         exit 1;;
+    * ) echo ${USAGE}
+          exit 1;;
+  esac
+done
+
+if [ -z ${DOJOT_URL} ] || [ -z ${DOJOT_USERNAME} ] || [ -z ${DOJOT_PASSWD} ]
+then
+    echo ${USAGE}
+    exit 1
+fi
+
+# JWT Token
+echo 'Getting jwt token ...'
+JWT=$(curl --silent -X POST ${DOJOT_URL}/auth \
+-H "Content-Type:application/json" \
+-d "{\"username\": \"${DOJOT_USERNAME}\", \"passwd\" : \"${DOJOT_PASSWD}\"}" | jq '.jwt' | tr -d '"')
+echo "... Got jwt token ${JWT}."
+
+# Create Template
+echo 'Creating template ...'
+TEMPLATE_ID=$(curl --silent -X POST ${DOJOT_URL}/template \
+-H 'Content-Type:application/json' \
+-H "Authorization: Bearer ${JWT}" \
+-d  '{
+       "label": "CronBrokerJobTemplate", 
+       "attrs": [
+                  {
+                    "label": "message",     
+                    "type": "actuator", 
+                    "value_type": "string"}
+               ]
+    }' | jq '.template.id')
+echo "... Created template ${TEMPLATE_ID}."
+
+# Create Device
+echo 'Creating device ...'
+DEVICE_ID=$(curl --silent -X POST ${DOJOT_URL}/device \
+-H 'Content-Type:application/json' \
+-H "Authorization: Bearer ${JWT}" \
+-d  "{
+        \"templates\": [\"${TEMPLATE_ID}\"],
+        \"attrs\": {},
+        \"label\": \"CronBrokerJobDevice\"
+    }" | jq '.devices[0].id')
+echo "... Created device ${DEVICE_ID}."
+
+# Create Data Broker Job
+echo 'Scheduling a cron job (keepalive) ...'
+JOB_ID=$(curl -w "\n%{http_code}" --silent -X POST ${DOJOT_URL}/cron/v1/jobs \
+-H "Content-Type:application/json" \
+-H "Authorization: Bearer ${JWT}" \
+-d "{
+      \"time\": \"*/5 * * * *\",
+      \"timezone\": \"America/Sao_Paulo\",
+      \"name\": \"Keep alive\",
+      \"description\": \"This job sends a keep alive notification to a device every 5 minutes\",
+      \"broker\": {
+                    \"subject\": \"dojot.device-manager.device\",
+                    \"message\": {
+                                  \"event\": \"configure\", 
+                                  \"data\": {
+                                             \"attrs\": { \"message\": \"keepalive\"},                 
+                                             \"id\": ${DEVICE_ID}
+                                            }, 
+                                    \"meta\": {
+                                              \"service\": \"admin\"
+                                              }
+                                }
+                  }
+    }")
+RESPONSE=(${RESPONSE[@]}) # convert to array
+HTTP_STATUS=${RESPONSE[-1]} # get last element (last line)
+BODY=${RESPONSE[@]::${#RESPONSE[@]}-1} # get all elements except last
+
+if [ "${HTTP_STATUS}" == "201" ]
+then
+  echo "... Succeeded to schedule job."
+  echo "${BODY}"
+else
+  echo '... Failed to schedule cron job.'
+  echo "${BODY}"
+fi

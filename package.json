@@ -1,0 +1,35 @@
+{
+  "name": "@dojot/cron",
+  "version": "0.0.1",
+  "description": "Scheduler for events/notifications to be emitted to other dojot microservices",
+  "main": "server.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/dojot/cron.git"
+  },
+  "keywords": [
+    "schedule",
+    "trigger",
+    "notification",
+    "dojot"
+  ],
+  "author": "Rafael Augusto Scaraficci",
+  "license": "GPL-3.0-or-later",
+  "bugs": {
+    "url": "https://github.com/dojot/cron/issues"
+  },
+  "homepage": "https://github.com/dojot/cron#readme",
+  "dependencies": {
+    "@dojot/dojot-module": "0.0.1-beta.1",
+    "axios": "^0.18.0",
+    "cron": "^1.6.0",
+    "cron-parser": "^2.7.3",
+    "express": "^4.16.4",
+    "express-validator": "^5.3.0",
+    "lodash": "^4.17.11",
+    "uuid": "^3.3.2"
+  }
+}
