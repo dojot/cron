@@ -81,13 +81,13 @@ JOB_ID=$(curl -w "\n%{http_code}" --silent -X POST ${DOJOT_URL}/cron/v1/jobs \
     }")
 RESPONSE=(${RESPONSE[@]}) # convert to array
 HTTP_STATUS=${RESPONSE[-1]} # get last element (last line)
-BODY=${RESPONSE[@]::${#RESPONSE[@]}-1} # get all elements except last
+BODY=(${RESPONSE[@]::${#RESPONSE[@]}-1}) # get all elements except last
 
 if [ "${HTTP_STATUS}" == "201" ]
 then
   echo "... Succeeded to schedule job."
-  echo "${BODY}"
+  echo "${BODY[*]}"
 else
   echo '... Failed to schedule cron job.'
-  echo "${BODY}"
+  echo "${BODY[*]}"
 fi

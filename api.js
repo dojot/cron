@@ -119,15 +119,12 @@ app.post('/cron/v1/jobs',[
       //http-headers
        body('http.headers', errors.invalid.http.headers)
        .optional().custom(value => {
-        console.log(`${JSON.stringify(value)}`);
-
          if (!value) return true;
           try {
             // json
             let headers = JSON.stringify(value);
             
             // max:2048
-            console.log(`Length: ${headers.length}`);
             if(headers.length <= 2048) {
               return true;
             }
@@ -245,6 +242,7 @@ app.post('/cron/v1/jobs',[
     cronManager.createJob(req.service /*tenant*/, jobSpec).then((jobId) => {
       return res.status(201).json({status: 'success', jobId: jobId});
     }).catch(error => {
+      console.debug(`Something unexpected happened (${error})`);
       return res.status(500).json({status: 'error', errors: [errors.internal]});
     });
 
@@ -294,7 +292,8 @@ app.get('/cron/v1/jobs/:id?',[],
         return res.status(200).json(jobs);
       }).catch(
         error => {
-            return res.status(500).json({status: 'error', errors: [errors.internal]});
+          console.debug(`Something unexpected happened (${error})`);
+          return res.status(500).json({status: 'error', errors: [errors.internal]});
         }
     );
   }
@@ -309,7 +308,7 @@ app.delete('/cron/v1/jobs/:id',[],
   let jobId = req.params.id || null;
 
   cronManager.deleteJob(req.service /*tenant*/, jobId).then(
-    (job) => {
+    () => {
       return res.status(204).send();
     }).catch(
       error => {

@@ -36,12 +36,12 @@ RESPONSE=$(curl -w "\n%{http_code}" --silent -X DELETE ${DOJOT_URL}/cron/v1/jobs
 -H "Authorization: Bearer ${JWT}")
 RESPONSE=(${RESPONSE[@]}) # convert to array
 HTTP_STATUS=${RESPONSE[-1]} # get last element (last line)
-BODY=${RESPONSE[@]::${#RESPONSE[@]}-1} # get all elements except last
+BODY=(${RESPONSE[@]::${#RESPONSE[@]}-1}) # get all elements except last
 
-echo "... Got cron job response:"
 if [ "${HTTP_STATUS}" == "204" ]
 then
-  echo "OK"
+  echo "... Succeeded to delete job."
 else
-  echo "${BODY}"
+  echo "... Failed to delete job."
+  echo "${BODY[*]}"
 fi

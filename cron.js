@@ -2,7 +2,7 @@
 
 const CronJob = require('cron').CronJob;
 const uuidv4 = require('uuid/v4');
-const vm = require('vm');
+//const vm = require('vm');
 const http = require('./http');
 const broker = require('./broker');
 
@@ -87,7 +87,7 @@ class CronManager {
                             console.debug(`... Succeeded to execute job ${jobId}`);
                         }).catch(error => {
                             // TODO: generate notification
-                            console.debug(`... Failed to execute job ${jobId}`);
+                            console.debug(`... Failed to execute job ${jobId} (error)`);
                         });
                     }
 
@@ -137,10 +137,13 @@ class CronManager {
     }
 
     readAllJobs(tenant) {
-        return new Promise((resolve, reject) => {
+        return new Promise((resolve) => {
             let jobs = [];
             for(let [key, value] of this.crontab) {
-                jobs.push({jobId: key.split(':')[1], spec: value.spec});
+                let [_tenant, jobId] = key.split(':');
+                if(_tenant === tenant) {
+                    jobs.push({jobId: jobId, spec: value.spec});
+                }
             }
             resolve(jobs);
         });
