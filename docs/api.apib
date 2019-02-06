@@ -1,0 +1,357 @@
+FORMAT: 1A
+HOST: http://localhost:5000
+
+# Cron
+
+Cron is a simple dojot API allowing to schedule tasks to: call other dojot services,
+send events to the data broker or execute a given javascript function.
+
+
+# Group Jobs
+
+## Jobs [/cron/v1/jobs]
+
+### Create a New Job [POST /cron/v1/jobs]
+
++ Request (application/json)
+    + Headers
+
+            Authorization: Bearer JWT
+
+    + Body
+
+            {
+                "time": "0/5 * * * *",
+                "timezone": "America/Sao_Paulo",
+                "name": "Keep alive",
+                "description": "This job sends a keep alive notification to a device every 5 minutes",
+                "broker": {
+                            "subject": "dojot.device-manager.device",
+                            "message": {
+                                        "event": "configure", 
+                                        "data": {
+                                                    "attrs": { "message": "keepalive"},                 
+                                                    "id": "e1b1a9"
+                                                }, 
+                                        "meta": {
+                                                    "service": "admin"
+                                                }
+                                       }
+                          }
+            }
+
+    + Schema
+
+            {
+              "$schema": "http://json-schema.org/draft-04/schema#",
+              "type": "object",
+              "properties": {
+                "time": {
+                  "type": "string",
+                  "description": "The cron time string is five values separated by spaces. From the most left value to the righest one, we have minute (0-59), hour (0-23), day of month (1-31), month (1-12 or names), and day of week (0-7 or names, 0 or 7 are sunday). You may use multiple values separated by comma e.g 0,10,20,30,40,50, * * * * ."
+                },
+                "timezone": {
+                  "type": "string",
+                  "description": "The timezone that is used for cron job scheduling. Allowed values https://en.wikipedia.org/wiki/List_of_tz_database_time_zones."
+                },
+                "name": {
+                  "type": "string",
+                  "description": "The name of the cron job. Maximum lenght is 128 chars."
+                },
+                "description": {
+                  "type": "string",
+                  "description": "The description of the cron job. Maximum length is 1024 chars."
+                },
+                "oneOf": [
+                  "http": {
+                    "type": "object",
+                    "properties": {
+                      "method": {
+                        "type": "string",
+                        "description": "HTTP method that this cron job HTTP requests will use. Allowed values: `POST`, `GET`, `PUT`, `DELETE`, `HEAD`, `PATCH`, `CONNECT`, `OPTIONS`, `TRACE`."
+                      },
+                      "headers": {
+                        "type": "object",
+                        "description": "HTTP headers that this cron job HTTP requests will use. Maximum length is 2048 chars."
+                      },
+                      "url": {
+                        "type": "string",
+                        "description": "URL endpoint that this cron job HTTP requests will use."
+                      },
+                      "criterion": {
+                        "type": "number",
+                        "description": "The rules for considering if an execution of this cron job\n\nsucceeded or failed. Allowed values: `1` (default) - considers execution succeeded when the HTTP code is 2xx, `2` - considers execution succeeded when the HTTP code is 2xx and the HTTP body message matches success_regexp, and `3` - considers execution failed when the HTTP code is 2xx and the HTTP body message matches failure_regexp."
+                      },
+                      "sregex": {
+                        "type": "string",
+                        "description": "the regular expression to match when criterion is set to 2. When criterion is not 2, this argument will be ignored. Maximum length is 256 chars."
+                      },
+                      "fregex": {
+                        "type": "string",
+                        "description": "The regular expression to match when criterion is set to 3. When criterion is not 3, this argument will be ignored. Maximum length is 256 chars."
+                      },
+                      "body": {
+                        "type": "object",
+                        "description": "HTTP json-body that this cron job HTTP requests will use. Maximum length is 8192 chars."
+                      }
+                    },
+                    "required": [
+                      "method",
+                      "url"
+                    ],
+                    "description": "The HTTP request to be executed by this cron job."
+                  },
+                  "broker": {
+                    "type": "object",
+                    "properties": {
+                      "subject": {
+                        "type": "string",
+                        "description": "The subject to which the message will be sent. Maximum length of 128 chars. It must be a valid dojot subject."
+                      },
+                      "message": {
+                        "type": "object",
+                        "description": "The json message to be sent by this cron job. It must be a valid dojot message for its corresponding subject. Maximum length is 8192 chars."
+                      }
+                    },
+                    "required": [
+                      "subject",
+                      "message"
+                    ],
+                    "description": "The data broker message to be sent by this cron job."
+                  },
+                  "jscode": {
+                    "type": "object",
+                    "properties": {
+                      "snippet": {
+                        "type": "string",
+                        "description": "The snippet of javascript code to be executed. Maximum length 1024."
+                      }
+                    }
+                    "required": [
+                     "snippet"
+                    ],
+                    "description": "The javascript code to be executed by this job."                   
+                  }
+              ],
+              "required": [
+                "time"
+              ]
+            }
+
++ Response 201 (application/json)
+    + Body
+
+            {
+                "status": "success",
+                "jobId": "e909e5c5-c0a7-4d91-a60a-5dbfe17fcdad"
+            }
+
++ Response 400 (application/json)
+    + body
+
+            {
+                "status": "error",
+                "errors": [
+                            {
+                              "code": 101,
+                              "message": "Invalid cron time."
+                            }
+                          ]
+            }
+
++ Response 500 (application/json)
+    + body
+
+            {
+                "status": "error",
+                "errors": [
+                            {
+                              "code": 1,
+                              "message": "Something went wrong. Try again later."
+                            }
+                          ]
+            }
+
+### Read all Jobs [GET /cron/v1/jobs]
+
++ Request (application/json)
+    + Headers
+
+            Authorization: Bearer JWT
+
++ Response 200 (application/json)
+    + Body
+
+            {
+                [
+                    {
+                        "jobId":    "e909e5c5-c0a7-4d91-a60a-5dbfe17fcdad",
+                        "spec":     {
+
+                                        "time":        "*/5 * * * *",
+                                        "timezone":    "America/Sao_Paulo",
+                                        "name":        "Keep alive",
+                                        "description": "This job sends a keep alive notification to a device every 5 minutes",
+                                        "broker":   {
+                                                        "subject": "dojot.device-manager.device",
+                                                        "message": {
+                                                                        "event": "configure",
+                                                                        "data": {
+                                                                                    "attrs": {
+                                                                                                "message": "keepalive"
+                                                                                            },
+                                                                                    "id": "1e3a51"
+                                                                                },
+                                                                        "meta": {
+                                                                                    "service": "admin"
+                                                                                }
+                                                                    }
+                                                    }
+                                        }
+                    },
+                    {
+                        "jobId":    "e81d70eb-b2b9-484d-9d42-e7b9b4a1f970",
+                        "spec":     {
+
+                                        "time":        "*/5 * * * *",
+                                        "timezone":    "America/Sao_Paulo",
+                                        "name":        "Keep alive\",
+                                        "description": "This job sends a keep alive notification to a device every 5 minutes",
+                                        "broker":   {
+                                                        "subject": "dojot.device-manager.device",
+                                                        "message": {
+                                                                        "event": "configure",
+                                                                        "data": {
+                                                                                    "attrs": {
+                                                                                                "message": "keepalive"
+                                                                                            },
+                                                                                    "id": "dc9f5f"
+                                                                                },
+                                                                        "meta": {
+                                                                                    "service": "admin"
+                                                                                }
+                                                                    }
+                                                    }
+                                        }
+                    }
+                ]
+            }
+
++ Response 500 (application/json)
+    + body
+
+            {
+                "status": "error",
+                "errors": [
+                            {
+                              "code": 1,
+                              "message": "Something went wrong. Try again later."
+                            }
+                          ]
+            }
+
+### Read a Given Job [GET /cron/v1/jobs/{id}]
+
++ Parameters
+    + id: e909e5c5-c0a7-4d91-a60a-5dbfe17fcdad
+
++ Request (application/json)
+    + Headers
+
+            Authorization: Bearer JWT
+
++ Response 200 (application/json)
+    + Body
+
+            {
+                "jobId":    "e909e5c5-c0a7-4d91-a60a-5dbfe17fcdad",
+                "spec":     {
+
+                                "time":        "*/5 * * * *",
+                                "timezone":    "America/Sao_Paulo",
+                                "name":        "Keep alive\",
+                                "description": "This job sends a keep alive notification to a device every 5 minutes",
+                                "broker":   {
+                                                "subject": "dojot.device-manager.device",
+                                                "message": {
+                                                                "event": "configure",
+                                                                "data": {
+                                                                            "attrs": {
+                                                                                        "message": "keepalive"
+                                                                                    },
+                                                                            "id": "1e3a51"
+                                                                        },
+                                                                "meta": {
+                                                                            "service": "admin"
+                                                                        }
+                                                            }
+                                            }
+                            }
+            }
+
++ Response 404 (application/json)
+    + body
+
+            {
+                "status": "error",
+                "errors": [
+                            {
+                              "code": 2,
+                              "message": "Resource not found."
+                            }
+                          ]
+            }
+
++ Response 500 (application/json)
+    + body
+
+            {
+                "status": "error",
+                "errors": [
+                            {
+                              "code": 1,
+                              "message": "Something went wrong. Try again later."
+                            }
+                          ]
+            }
+
+### Delete a Given Job [DELETE /cron/v1/jobs/{id}]
+
++ Parameters
+    + id: e909e5c5-c0a7-4d91-a60a-5dbfe17fcdad
+
++ Request (application/json)
+    + Headers
+
+            Authorization: Bearer JWT
+
++ Response 204
+
++ Response 404 (application/json)
+    + body
+
+            {
+                "status": "error",
+                "errors": [
+                            {
+                              "code": 2,
+                              "message": "Resource not found."
+                            }
+                          ]
+            }
+
++ Response 500 (application/json)
+    + body
+
+            {
+                "status": "error",
+                "errors": [
+                            {
+                              "code": 1,
+                              "message": "Something went wrong. Try again later."
+                            }
+                          ]
+            }
+
+
+
