@@ -149,48 +149,6 @@ class CronManager {
         });
     }
 
-/*
-    updateJob(tenant, jobId, jobSpec) {
-        return new Promise((resolve, reject) => {
-            let key = this._makeKey(tenant, jobId);
-            let value = this.crontab.get(key);
-            // found
-            if(value){
-                try {
-                    // discard old job
-                    value.job.stop();
-                    delete value.job;
-
-                    // cron job
-                    let job = new CronJob(jobSpec.time, () => {
-                        console.debug(`Executing job ${util.inspect(jobSpec, {depth: null})} ...`);            
-                        // TODO: execute the job
-                    });
-                    
-                    // cache
-                    value.job = job;
-                    this.crontab.set(key, value);
-                    
-                    // db
-                    // TODO
-
-                    // start job
-                    job.start();
-                    resolve(jobId);
-                }
-                catch(ex) {
-                    console.debug(`Got exception ${ex}`);
-                    reject(ex);
-                }
-            }
-            // not found
-            else {
-
-            }
-        });
-
-    }*/
-
     deleteJob(tenant, jobId) {
         return new Promise((resolve, reject) => {
             let key = this._makeKey(tenant, jobId);
