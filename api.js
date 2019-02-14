@@ -108,7 +108,7 @@ app.post('/cron/v1/jobs',[
       body('http.url', errors.invalid.http.url)
       .custom(value => {
         // allowed base URLs
-        for(let baseURL of config.cronManager.http.allowedBaseURLs) {
+        for(let baseURL of config.cronManager.actions.http.allowedBaseURLs) {
           if(value.startsWith(baseURL)) {
             return true;
           }

@@ -1,6 +1,5 @@
 "use strict";
 
-const dojotModule = require('@dojot/dojot-module');
 const config = require('./config');
 
 // Errors ...
@@ -30,26 +29,30 @@ class InternalError extends Error {
 // ... Errors
 
 class BrokerHandler {
-    constructor() {
-        this.kafkaMessenger = new dojotModule.Messenger('cron', config.kafkaMessenger);
-        this.allowedSubjects = config.cronManager.broker.allowedSubjects;
+    constructor(messenger) {
+        this.dojotMessenger = messenger;
+        this.allowedSubjects = config.cronManager.actions.broker.allowedSubjects;
         console.info(`Allowed subjects: ${this.allowedSubjects}`);
     }
 
     init() {
-        return this.kafkaMessenger.init().then(() => {
-            for(let subject of this.allowedSubjects) {
-                this.kafkaMessenger.createChannel(subject, "w", false);
-                console.info(`Created writable channel for subject ${subject}`);
+        return new Promise((resolve, reject) => {
+            try{           
+                for(let subject of this.allowedSubjects) {
+                    this.dojotMessenger.createChannel(subject, "w", false);
+                    console.info(`Created writable channel for subject ${subject}`);
+                }
+                resolve();
             }
-        }).catch(error => {
-            console.error(`Failed to initialize Data Broker (${error})`);
-            throw new InitializationFailed();
+            catch(error) {
+                console.error(`Failed to configure channels in dojot messenger (${error})`);
+                reject(new InitializationFailed());
+            }
         });
     }
 
     _isTenantValid(tenant) {
-        return (this.kafkaMessenger.tenants.find(t => t === tenant) ? true : false);
+        return (this.dojotMessenger.tenants.find(t => t === tenant) ? true : false);
     }
 
     _isSubjectValid(subject) {
@@ -81,7 +84,7 @@ class BrokerHandler {
                 // TODO
 
                 // publish
-                this.kafkaMessenger.publish(req.subject, tenant, JSON.stringify(req.message));
+                this.dojotMessenger.publish(req.subject, tenant, JSON.stringify(req.message));
                 console.debug(`Published message ${JSON.stringify(req.message)} to ${tenant}/${req.subject}`);
 
                 resolve();

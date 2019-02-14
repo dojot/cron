@@ -5,13 +5,9 @@ const config = require('./config');
 
 class HttpHandler {
 
-    constructor() {
+    constructor() {}
 
-    }
-
-    init() {
-
-    }
+    init() {}
 
     send(tenant, req) {
         console.log(req);
@@ -21,7 +17,7 @@ class HttpHandler {
                 headers: req.headers,
                 url: req.url,
                 data: JSON.stringify(req.body),
-                timeout: config.cronManager.http.timeout
+                timeout: config.cronManager.actions.http.timeout
             }).then(response => {
                 //response.status === 2xx
                 let criterion = req.criterion || 1;
