@@ -112,7 +112,7 @@ class CronManager {
                             logger.debug(`... Succeeded to execute cron job ${jobId}.`);
                         }).catch(error => {
                             // TODO: generate notification
-                            logger.debug(`... Failed to execute cron job ${jobId}.`);
+                            logger.debug(`... Failed to execute cron job ${jobId} (${error}).`);
                         });
                     }
 
@@ -191,8 +191,8 @@ class CronManager {
 
             // tenancy channel: new-tenant event
             this.dojotMessenger.on(config.kafkaMessenger.dojot.subjects.tenancy, 
-                'new-tenant', (tenant, newtenant) => {
-                    this._setTenant();
+                'new-tenant', (_tenant, newtenant) => {
+                    this._setTenant(newtenant);
             });
             
             let tenantSetPromises = [];
@@ -222,6 +222,7 @@ class CronManager {
                     resolve(jobId);
                 });
             }).catch(error => {
+                logger.debug(`Couldn't create job (${error}).`)
                 reject(new InternalError('Internal error while creating job.'));
             });
         });
