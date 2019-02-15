@@ -1,4 +1,5 @@
 "use strict";
+const logger = require("@dojot/dojot-module-logger").logger
 
 function b64decode(data) {
   if (typeof Buffer.from === "function") {
@@ -28,7 +29,7 @@ function authParse(req, res, next) {
 
   const token = rawToken.split('.');
   if (token.length !== 3) {
-    console.error("Got invalid request: token is malformed", rawToken);
+    logger.error(`Got invalid request: token is malformed (${rawToken})`);
     return res.status(401).send(new InvalidTokenError());
   }
 
@@ -42,13 +43,13 @@ function authParse(req, res, next) {
 
 function authEnforce(req, res, next) {
   if (req.path.match(/(\.png|svg$)|(keymap\.json$)/)){
-    console.log('will ignore ', req.path);
+    logger.debug(`will ignore ${req.path}`);
     return next();
   }
 
   if (req.user === undefined || req.user.trim() === "" ) {
     // valid token must be supplied
-    console.error("Got invalid request: user is not defined in token: ", req.get('authorization'));
+    logger.error(`Got invalid request: user is not defined in token: ${req.get('authorization')}`);
     return res.status(401).send(new UnauthorizedError());
   }
 

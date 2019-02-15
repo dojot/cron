@@ -1,6 +1,7 @@
 "use strict";
 
 const dojotModule = require('@dojot/dojot-module');
+const logger = require("@dojot/dojot-module-logger").logger;
 const CronJob = require('cron').CronJob;
 const uuidv4 = require('uuid/v4');
 const http = require('./http');
@@ -35,7 +36,7 @@ class CronManager {
         this.db = new DB();
 
         // http handler
-        this.httpHandler = new http.HttpHandler(this.dojotMessenger);
+        this.httpHandler = new http.HttpHandler();
 
         // broker handler
         this.brokerHandler = new broker.BrokerHandler(this.dojotMessenger);
@@ -59,16 +60,16 @@ class CronManager {
                 }
 
                 Promise.all(cronJobSetPromises).then(() => {
-                    console.info(`Support for tenant ${tenant} was configured.`);
+                    logger.info(`Succeeded to set cron jobs for tenant ${tenant}.`);
                     resolve();
                 }).catch(error => {
-                    console.error(`Failed to set cron jobs for ${tenant} (${error}).`);
-                    reject(new InternalError(`Internat error while setting cron jobs for tenant ${tenant}.`));
+                    logger.error(`Failed to set cron jobs for ${tenant} (${error}).`);
+                    reject(new InternalError(`Internal error while setting cron jobs for tenant ${tenant}.`));
                 });
 
             }).catch((error) => {
-                console.error(`Failed to read jobs from database for ${tenant} (${error}).`);
-                reject(new InternalError(`Internat error while reading jobs for tenant ${tenant}.`));
+                logger.error(`Failed to read cron jobs from database for ${tenant} (${error}).`);
+                reject(new InternalError(`Internal error while reading cron jobs from database for tenant ${tenant}.`));
             });
         });
     }
@@ -84,16 +85,16 @@ class CronManager {
                 }
 
                 Promise.all(cronJobUnsetPromises).then(() => {
-                    console.info(`Support for tenant ${tenant} was removed.`);
+                    logger.info(`Succeeded to remove cron jobs for tenant ${tenant}.`);
                     resolve();
                 }).catch(error => {
-                    console.error(`Failed to remove cron jobs for ${tenant} (${error}).`);
-                    reject(new InternalError(`Internat error while removing cron jobs for tenant ${tenant}.`));
+                    logger.error(`Failed to remove cron jobs for ${tenant} (${error}).`);
+                    reject(new InternalError(`Internal error while removing cron jobs for tenant ${tenant}.`));
                 });
 
             }).catch(error => {
-                console.error(`Failed to read jobs from database for ${tenant} (${error}).`);
-                reject(new InternalError(`Internat error while reading jobs for tenant ${tenant}.`));
+                logger.error(`Failed to read cron jobs from database for ${tenant} (${error}).`);
+                reject(new InternalError(`Internal error while reading cron jobs from database for tenant ${tenant}.`));
             });
         });
     }
@@ -103,26 +104,25 @@ class CronManager {
             try {
                 // cron job
                 let job = new CronJob(jobSpec.time, () => {
-                    console.debug(`Executing job ${jobId} ...`);            
+                    logger.debug(`Executing cron job ${jobId} ...`);            
                     
                     // http action
                     if (jobSpec.http) {
                         this.httpHandler.send(tenant, jobSpec.http).then(() => {
-                            console.debug(`... Succeeded to execute job ${jobId}`);
+                            logger.debug(`... Succeeded to execute cron job ${jobId}.`);
                         }).catch(error => {
-                            console.log(error);
                             // TODO: generate notification
-                            console.debug(`... Failed to execute job ${jobId}`);
+                            logger.debug(`... Failed to execute cron job ${jobId}.`);
                         });
                     }
 
                     // broker action
                     if (jobSpec.broker) {
                         this.brokerHandler.send(tenant, jobSpec.broker).then(() => {
-                            console.debug(`... Succeeded to execute job ${jobId}`);
+                            logger.debug(`... Succeeded to execute cron job ${jobId}.`);
                         }).catch(error => {
                             // TODO: generate notification
-                            console.debug(`... Failed to execute job ${jobId} (${error})`);
+                            logger.debug(`... Failed to execute cron job ${jobId} (${error}).`);
                         });
                     }
                 });
@@ -134,13 +134,13 @@ class CronManager {
 
                 // start job
                 job.start();
-
-                console.info(`Started job ${jobId} with spec ${jobSpec}.`);
+                logger.info(`Succeeded to set up cron job ${jobId} with spec ${JSON.stringify(jobSpec)}.`);
+                
                 resolve();
             }
             catch(error) {
-                console.error(`Failed to set up cron job ${jobId} (${error}).`);
-                reject(new InternalError(`Internal error while setting up cron job ${jobId}`));
+                logger.error(`Failed to set up cron job ${jobId} with spec ${JSON.stringify(jobSpec)} (${error}).`);
+                reject(new InternalError(`Internal error while setting up cron job.`));
             }
         });
     }
@@ -156,35 +156,38 @@ class CronManager {
                 this.db.delete(tenant, jobId).then(() => {
                     resolve({jobId: jobId, spec: value.spec});
                 }).catch(error => {
-                    console.error(`Failed to remove job ${jobId} from database (${error}).`);
-                    reject(new InternalError(`Internal error while removing job ${jobId} from database.`));
+                    logger.error(`Failed to unset cron job ${jobId} (${error}).`);
+                    reject(new InternalError(`Internal error while unsetting cron job ${jobId}.`));
                 });
+
+                logger.info(`Succeeded to unset cron job ${jobId}.`);
             }
             else {
+                logger.debug(`Not found job ${jobId} for tenant ${tenant}`);
                 reject(new JobNotFound(`Not found job ${jobId} for tenant ${tenant}`));
             }
         });
     }
 
     init() {
-        console.debug('Initializing cron service ...');
+        logger.info('Initializing cron service ...');
         
         // dojot messenger
         return this.dojotMessenger.init().then(()=>{
-            console.info('Communication with dojot messenger service (kafka) was established.');
+            logger.info('Communication with dojot messenger service (kafka) was established.');
             return this.brokerHandler.init();
         // handler for broker jobs
         }).then(() => {
-            console.info('Handler for broker jobs was initialized.');
+            logger.info('Handler for broker jobs was initialized.');
             return this.db.init();
         //database
         }).then(()=> {
-            console.info('Communication with database was established.');
+            logger.info('Communication with database (mongoDB) was established.');
 
             // tenancy channel
             this.dojotMessenger.createChannel(
                 config.kafkaMessenger.dojot.subjects.tenancy, "r", true /*global*/);
-            console.info('Read-only channel for tenancy events was created.');
+            logger.info('Read-only channel for tenancy events was created.');
 
             // tenancy channel: new-tenant event
             this.dojotMessenger.on(config.kafkaMessenger.dojot.subjects.tenancy, 
@@ -199,7 +202,7 @@ class CronManager {
             return Promise.all(tenantSetPromises);      
         }).catch(error => {
             // something unexpected happended!
-            console.error(`Couldn't initialize the cron service (${error})`);
+            logger.error(`Couldn't initialize the cron manager (${error}).`);
             return Promise.reject(new InternalError('Internal error while starting cron manager.'));
         });
     }
@@ -216,11 +219,9 @@ class CronManager {
             };
             this.db.create(tenant, dbEntry).then(() => {
                 this._setCronJob(tenant, jobId, jobSpec).then(() => {
-                    console.info(`Succeeded to schedule job ${JSON.stringify(jobSpec)}`);
                     resolve(jobId);
                 });
             }).catch(error => {
-                console.warn(`Failed to schedule job ${Json.stringify(jobSpec)} (${error})`);
                 reject(new InternalError('Internal error while creating job.'));
             });
         });
@@ -236,7 +237,7 @@ class CronManager {
             }
             // not found
             else {
-                reject(new JobNotFound(`Not found job ${jobId} for tenant ${tenant}`));
+               reject(new JobNotFound(`Not found job ${jobId} for tenant ${tenant}`));
             }
         });
     }
@@ -262,6 +263,6 @@ class CronManager {
 
 module.exports = {
     JobNotFound: JobNotFound,
-    InternatlError: InternalError,
+    InternalError: InternalError,
     CronManager: CronManager
 };

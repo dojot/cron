@@ -1,5 +1,6 @@
 "use strict";
 
+const logger = require("@dojot/dojot-module-logger").logger;
 const config = require('./config');
 
 // Errors ...
@@ -32,7 +33,7 @@ class BrokerHandler {
     constructor(messenger) {
         this.dojotMessenger = messenger;
         this.allowedSubjects = config.cronManager.actions.broker.allowedSubjects;
-        console.info(`Allowed subjects: ${this.allowedSubjects}`);
+        logger.info(`Broker handler can publish to subjects: ${this.allowedSubjects}`);
     }
 
     init() {
@@ -40,13 +41,13 @@ class BrokerHandler {
             try{           
                 for(let subject of this.allowedSubjects) {
                     this.dojotMessenger.createChannel(subject, "w", false);
-                    console.info(`Created writable channel for subject ${subject}`);
+                    logger.info(`Created writable channel for subject ${subject}.`);
                 }
                 resolve();
             }
             catch(error) {
-                console.error(`Failed to configure channels in dojot messenger (${error})`);
-                reject(new InitializationFailed());
+                logger.error(`Failed to configure channels in dojot messenger (${error}).`);
+                reject(new InitializationFailed(`Broker handler couldn't be initialized.`));
             }
         });
     }
@@ -68,15 +69,15 @@ class BrokerHandler {
 
                 // validate tenant
                 if(!this._isTenantValid(tenant)) {
-                    console.warn(`Failed to publish message (Invalid Tenant)`);
-                    reject(new InvalidTenant(`Broker doesn't know tenant ${tenant}`));
+                    logger.debug(`Failed to publish message (Invalid Tenant).`);
+                    reject(new InvalidTenant(`Broker handler doesn't know tenant ${tenant}`));
                     return;
                 }
 
                 // validate subject
                 if(!this._isSubjectValid(req.subject)) {
-                    console.warn(`Failed to publish message (Invalid Subject)`);
-                    reject(new InvalidSubject(`Broker doesn't know subject ${req.subject}`));
+                    logger.debug(`Failed to publish message (Invalid Subject)`);
+                    reject(new InvalidSubject(`Broker handler doesn't know subject ${req.subject}`));
                     return;
                 }
 
@@ -85,13 +86,13 @@ class BrokerHandler {
 
                 // publish
                 this.dojotMessenger.publish(req.subject, tenant, JSON.stringify(req.message));
-                console.debug(`Published message ${JSON.stringify(req.message)} to ${tenant}/${req.subject}`);
-
+                logger.debug(`Published message ${JSON.stringify(req.message)} to ${tenant}/${req.subject}`);
                 resolve();
+                return;
             }
-            catch (ex) {
-                console.warn(`Failed to publish message (${ex}) to ${tenant}/${req.subject}`);
-                reject(new InternalError('Internal Error'));
+            catch (error) {
+                logger.debug(`Failed to publish message to ${tenant}/${req.subject} (${error}).`);
+                reject(new InternalError(`Internal Error while publishing message to ${tenant}/${req.subject}`));
             }
         });
     }

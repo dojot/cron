@@ -1,7 +1,22 @@
 "use strict";
 
 const axios = require('axios');
+const logger = require("@dojot/dojot-module-logger").logger;
 const config = require('./config');
+
+// Errors ...
+class JobExecutionFailed extends Error {
+    constructor(...args) {
+        super(...args);
+    }
+}
+
+class InternalError extends Error {
+    constructor(...args) {
+        super(...args);
+    }
+}
+// ... Errors
 
 class HttpHandler {
 
@@ -10,7 +25,7 @@ class HttpHandler {
     init() {}
 
     send(tenant, req) {
-        console.log(req);
+        logger.debug(`HTTP request - ${JSON.stringify(req)}.`);
         return new Promise((resolve, reject) => {
             axios({
                 method: req.method,
@@ -19,6 +34,7 @@ class HttpHandler {
                 data: JSON.stringify(req.body),
                 timeout: config.cronManager.actions.http.timeout
             }).then(response => {
+                logger.debug(`HTTP response - status (${response.status}) data(${JSON.stringify(response.data)}).`)
                 //response.status === 2xx
                 let criterion = req.criterion || 1;
                 switch(criterion) {
@@ -33,8 +49,8 @@ class HttpHandler {
                             resolve();
                         }
                         else {
-                            console.warn(`Failed to execute http request by criterion 2`);
-                            reject();
+                            logger.debug(`Failed to execute http request by criterion 2.`);
+                            reject(new JobExecutionFailed(`HTTP request failed by criterion 2.`));
                         }
                         break;
                     }
@@ -42,8 +58,8 @@ class HttpHandler {
                         let fre = new RegExp(req.fregex);
                         let nok = fre.exec(response.body);
                         if (nok) {
-                            console.warn(`Failed to execute http request by criterion 3`);
-                            reject();
+                            logger.debug(`Failed to execute http request by criterion 3.`);
+                            reject(new JobExecutionFailed(`HTTP request failed by criterion 3.`));
                         }
                         else {
                             resolve();
@@ -51,13 +67,14 @@ class HttpHandler {
                         break;
                     }
                     default: {
-                        reject();
+                        logger.debug(`Unknown evaluation criterion ${criterion} for http response.`)
+                        reject(new InternalError(`Internal error while evaluating http response.`));
                         break;
                     }
                 }
             }).catch(error => {
-                console.warn(`Failed to execute http request (${error})`);
-                reject();
+                logger.debug(`Failed to execute http request (${error}).`);
+                reject(new InternalError(`Internal error while execution http request.`));
             });
         });
 
@@ -66,5 +83,7 @@ class HttpHandler {
 }
 
 module.exports = {
-    HttpHandler: HttpHandler
+    HttpHandler: HttpHandler,
+    JobExecutionFailed: JobExecutionFailed,
+    InternalError: InternalError
 };

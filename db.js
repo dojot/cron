@@ -1,6 +1,7 @@
 "use strict";
 
 const mongo = require('mongodb').MongoClient;
+const logger = require("@dojot/dojot-module-logger").logger;
 const config = require('./config');
 
 // Errors ...
@@ -34,11 +35,13 @@ class DB {
         let key = tenant;
         let db = this.client.db('cron_' + tenant);
         let collection = db.collection('jobs'); 
+        logger.info(`Created collection jobs into database ${'cron_' + tenant}.`);
         let entry = {
             db: db,
             collection: collection
         };
         this.databases.set(key, entry);
+        logger.debug(`Cached database clients for tenant ${tenant}.`);
     }
 
     unsetTenant(tenant) {
@@ -46,9 +49,11 @@ class DB {
         let entry = this.databases.get(key);
         if(entry) {
             entry.db.dropDatabase();
+            logger.info(`Droped database ${'cron_' + tenant}.`)
             this.databases.delete(key);
         }
         else {
+            logger.debug(`Nothing to be unset. Database doesn't exist for tenant ${tenant}.`);
             throw new DatabaseNotFound(`Not found database for tenant ${tenant}.`);
         }
     }
