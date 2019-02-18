@@ -48,8 +48,8 @@ class CronManager {
 
     _setTenant(tenant) {
         return new Promise((resolve, reject) => {
-            // setup tenant in database if it hasn't been done yet
-            this.db.setTenant(tenant);
+            // create database for this tenant if it hasn't been done yet
+            this.db.createDatabase(tenant);
 
             // load existing jobs for the corresponding tenant
             this.db.readAll(tenant).then((jobs) => {
@@ -86,7 +86,14 @@ class CronManager {
 
                 Promise.all(cronJobUnsetPromises).then(() => {
                     logger.info(`Succeeded to remove cron jobs for tenant ${tenant}.`);
-                    resolve();
+
+                    this.db.removeDatabase(tenant).then(() => {
+                        logger.info(`Succeeded to drop database for tenant ${tenant}.`);
+                        resolve();
+                    }).catch(error => {
+                        logger.error(`Failed to drop database for ${tenant} (${error}).`);
+                        reject(new InternalError(`Internal error while droping database for tenant ${tenat}`));
+                    });
                 }).catch(error => {
                     logger.error(`Failed to remove cron jobs for ${tenant} (${error}).`);
                     reject(new InternalError(`Internal error while removing cron jobs for tenant ${tenant}.`));
@@ -220,10 +227,13 @@ class CronManager {
             this.db.create(tenant, dbEntry).then(() => {
                 this._setCronJob(tenant, jobId, jobSpec).then(() => {
                     resolve(jobId);
+                }).catch(error => {
+                    logger.debug(`Couldn't set cron job (${error}).`);
+                    reject(new InternalError('Internal error while setting cron job.'));
                 });
             }).catch(error => {
-                logger.debug(`Couldn't create job (${error}).`)
-                reject(new InternalError('Internal error while creating job.'));
+                logger.debug(`Couldn't create cron job (${error}).`)
+                reject(new InternalError('Internal error while creating cron job.'));
             });
         });
     }

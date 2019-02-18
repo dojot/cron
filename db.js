@@ -31,7 +31,7 @@ class DB {
           });
     }
 
-    setTenant(tenant) {
+    createDatabase(tenant) {
         let key = tenant;
         let db = this.client.db('cron_' + tenant);
         let collection = db.collection('jobs'); 
@@ -44,7 +44,7 @@ class DB {
         logger.debug(`Cached database clients for tenant ${tenant}.`);
     }
 
-    unsetTenant(tenant) {
+    deleteDatabase(tenant) {
         let key = tenant;
         let entry = this.databases.get(key);
         if(entry) {

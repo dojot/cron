@@ -6,7 +6,7 @@ This service is under development, and new commits are comming soon.
 
 ## TODO
 
-- Change to use dojot's logging library
 - Add support to job of type javascript code.
+- Add support to tenant removal events
 - Add documentation
-- Unit tests.
+- Add unit tests.
