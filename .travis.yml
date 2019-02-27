@@ -1,0 +1,13 @@
+language: node_js
+
+services:
+  - docker
+
+node_js:
+  - '8'
+
+script:
+  - 'docker build -t ${TRAVIS_REPO_SLUG} .'
+
+after_success:
+  - travis/publish.sh

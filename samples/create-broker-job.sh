@@ -57,7 +57,7 @@ echo "... Created device ${DEVICE_ID}."
 
 # Create Data Broker Job
 echo 'Scheduling a cron job (keepalive) ...'
-JOB_ID=$(curl -w "\n%{http_code}" --silent -X POST ${DOJOT_URL}/cron/v1/jobs \
+RESPONSE=$(curl -w "\n%{http_code}" --silent -X POST ${DOJOT_URL}/cron/v1/jobs \
 -H "Content-Type:application/json" \
 -H "Authorization: Bearer ${JWT}" \
 -d "{

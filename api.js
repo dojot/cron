@@ -3,6 +3,7 @@
 const express = require('express');
 const expressValidator = require('express-validator')
 const { body, oneOf, validationResult } = require('express-validator/check');
+const dojotLogger = require("@dojot/dojot-module-logger");
 const authChecker = require('./auth');
 const timeParser = require('cron-parser');
 const cron = require('./cron');
@@ -53,7 +54,10 @@ const errors = {
 };
 
 // Cron Manager
-var cronManager = null; //initialized at init()
+var cronManager = null; // initialized at init()
+
+// Logger
+const logger = dojotLogger.logger;
 
 //
 // REST API
@@ -67,12 +71,12 @@ app.post('/cron/v1/jobs',[
     try {
         const isValid = timeParser.parseString(value);
         if (typeof isValid.error != 'undefined' && isValid.error.length > 0) {
-          console.debug(`Couldn't parse cron time (error = ${isValid.error})`);
+          logger.debug(`Couldn't parse cron time (${isValid.error}).`);
           return false;
         }
       }
-      catch(ex) {
-        console.debug(`Couldn't parse cron time (exception = ${ex})`);
+      catch(error) {
+        logger.debug(`Couldn't parse cron time (${error}).`);
         return false;
       }
 
@@ -108,7 +112,7 @@ app.post('/cron/v1/jobs',[
       body('http.url', errors.invalid.http.url)
       .custom(value => {
         // allowed base URLs
-        for(let baseURL of config.cronManager.http.allowedBaseURLs) {
+        for(let baseURL of config.cronManager.actions.http.allowedBaseURLs) {
           if(value.startsWith(baseURL)) {
             return true;
           }
@@ -129,11 +133,11 @@ app.post('/cron/v1/jobs',[
               return true;
             }
             else {
-              console.debug(`HTTP headers exceeded maximum length (${headers.length} > 2048)`);
+              logger.debug(`HTTP headers exceeded maximum length (${headers.length} > 2048).`);
             }
           }
-          catch(ex) {
-            console.debug(`Couldn't parse headers for http-action (exception = ${ex})`);
+          catch(error) {
+            logger.debug(`Couldn't parse headers for http-action (${error}).`);
             return false;
           }
           return false;
@@ -165,11 +169,11 @@ app.post('/cron/v1/jobs',[
             return true;
           }
           else {
-            console.debug(`HTTP body exceeded maximum length (${body.length} > 8192)`);
+            logger.debug(`HTTP body exceeded maximum length (${body.length} > 8192).`);
           }
         }
-        catch(ex) {
-          console.debug(`Couldn't parse body for http-action (exception = ${ex})`);
+        catch(error) {
+          logger.debug(`Couldn't parse body for http-action (${error}).`);
           return false;
         }
         return false;
@@ -195,21 +199,16 @@ app.post('/cron/v1/jobs',[
             return true;
           }
           else {
-            console.debug(`Broker message exceeded maximum length (${message.length} > 8192)`);
+            logger.debug(`Broker message exceeded maximum length (${message.length} > 8192).`);
           }
         }
-        catch(ex) {
-          console.debug(`Couldn't parse message for broker-action (exception = ${ex})`);
+        catch(error) {
+          logger.debug(`Couldn't parse message for broker-action (${error}).`);
           return false;
         }
         return false;
       })
-    ]/*,
-    // jscode
-    [
-      // code
-      body('jscode.snippet', errors.invalid.jscode.snippet).isString().isLength({max: 1024})
-    ]*/
+    ]
   ], errors.invalid.action)
   ], 
   // handler
@@ -242,7 +241,7 @@ app.post('/cron/v1/jobs',[
     cronManager.createJob(req.service /*tenant*/, jobSpec).then((jobId) => {
       return res.status(201).json({status: 'success', jobId: jobId});
     }).catch(error => {
-      console.debug(`Something unexpected happened (${error})`);
+      logger.debug(`Something unexpected happened (${error})`);
       return res.status(500).json({status: 'error', errors: [errors.internal]});
     });
 
@@ -277,9 +276,11 @@ app.get('/cron/v1/jobs/:id?',[],
       }).catch(
         error => {
           if(error instanceof cron.JobNotFound) {
+            logger.debug(`Job ${jobId} not found.`);
             return res.status(404).json({status: 'error', errors: [errors.notfound]});
           }
           else {
+            logger.debug(`Something unexpected happened (${error})`);
             return res.status(500).json({status: 'error', errors: [errors.internal]});
           }
         }
@@ -292,7 +293,7 @@ app.get('/cron/v1/jobs/:id?',[],
         return res.status(200).json(jobs);
       }).catch(
         error => {
-          console.debug(`Something unexpected happened (${error})`);
+          logger.debug(`Something unexpected happened (${error})`);
           return res.status(500).json({status: 'error', errors: [errors.internal]});
         }
     );
@@ -313,9 +314,11 @@ app.delete('/cron/v1/jobs/:id',[],
     }).catch(
       error => {
         if(error instanceof cron.JobNotFound) {
+          logger.debug(`Job ${jobId} not found.`);
           return res.status(404).json({status: 'error', errors: [errors.notfound]});
         }
         else {
+          logger.debug(`Something unexpected happened (${error})`);
           return res.status(500).json({status: 'error', errors: [errors.internal]});
         }
       });
@@ -326,6 +329,7 @@ app.delete('/cron/v1/jobs/:id',[],
 module.exports = {
     init: (mgr) => {
       cronManager = mgr;
-      app.listen(5000, () => {console.info('[api] Cron service listening on port 5000');});
+      app.use('/cron/v1/', dojotLogger.getHTTPRouter());
+      app.listen(5000, () => {logger.info('[api] Cron service listening on port 5000');});
     }
   };

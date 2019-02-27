@@ -5,24 +5,26 @@ module.exports = {
     'kafkaMessenger' : {
       kafka: {
         producer: {
-            "metadata.broker.list": process.env.KAFKA_HOSTS || "kafka:9092",
-            "compression.codec": "gzip",
-            "retry.backoff.ms": 200,
-            "message.send.max.retries": 10,
-            "socket.keepalive.enable": true,
-            "queue.buffering.max.messages": 100000,
-            "queue.buffering.max.ms": 1000,
-            "batch.num.messages": 1000000,
-            "dr_cb": true
+          "metadata.broker.list": process.env.KAFKA_HOSTS || "kafka:9092",
+          "compression.codec": "gzip",
+          "retry.backoff.ms": 200,
+          "message.send.max.retries": 10,
+          "socket.keepalive.enable": true,
+          "queue.buffering.max.messages": 100000,
+          "queue.buffering.max.ms": 1000,
+          "batch.num.messages": 1000000,
+          "dr_cb": true
         },
   
         consumer: {
-            "group.id": process.env.KAFKA_GROUP_ID || "dojot-cron",
-            "metadata.broker.list": process.env.KAFKA_HOSTS || "kafka:9092",
+          "group.id": process.env.KAFKA_GROUP_ID || "dojot-cron",
+          "metadata.broker.list": process.env.KAFKA_HOSTS || "kafka:9092",
         },
 
         dojot: {
-            subscriptionHoldoff: Number(process.env.DOJOT_SUBSCRIPTION_HOLDOFF) || 2500
+          subscriptionHoldoff: Number(process.env.DOJOT_SUBSCRIPTION_HOLDOFF) || 2500,
+          timeoutSleep: 5,
+          connectionRetries: 5
         }
       },
       
@@ -59,18 +61,33 @@ module.exports = {
     },
 
     'cronManager': {
-      http: {
-        allowedBaseURLs: process.env.HTTP_ALLOWED_BASE_URLS || [
-          'http://device-manager:5000'
-        ],
-        timeout: 5000
+      actions: {
+        http: {
+          allowedBaseURLs: process.env.HTTP_ALLOWED_BASE_URLS || [
+            'http://device-manager:5000'
+          ],
+          timeout: 5000
+        },
+  
+        broker: {
+          allowedSubjects: process.env.BROKER_ALLOWED_SUBJECTS || [
+            "dojot.device-manager.device", 
+            "device-data"]
+        }
       },
 
-      broker: {
-        allowedSubjects: process.env.BROKER_ALLOWED_SUBJECTS || [
-          "dojot.device-manager.device", 
-          "device-data"]
+      db: {
+        mongodb: {
+          url: process.env.MONGO_URL || "mongodb://mongodb:27017",
+          options: {
+              useNewUrlParser: true,
+              connectTimeoutMS: 2500,
+              reconnectTries: 100,
+              reconnectInterval: 2500,
+              autoReconnect: true,
+              replicaSet: process.env.REPLICA_SET
+          }
+        }
       }
     }
-
 };
