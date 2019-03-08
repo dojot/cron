@@ -48,6 +48,7 @@ class DB {
                     dbStatus.details = allDbStats;
                     resolve(dbStatus);
                 }).catch(error => {
+                    logger.debug(`Failed to get database status (${error})`);
                     reject(new InternalError(`Internal error while getting database status.`));
                 });
             }

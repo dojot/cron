@@ -126,8 +126,14 @@ const kafka = {
 
 const kafkaCollector = (trigger = DataTrigger) => {
     return cronManager.brokerHandler.status().then(status => {
-        trigger.trigger(1 /*one connection */, 'pass');
-        logger.debug('[HEALTH CHECK] KAFKA CONNECTION OK');
+        if (status.connected) {
+            trigger.trigger(1 /*one connection */, 'pass');
+            logger.debug('[HEALTH CHECK] KAFKA CONNECTION OK');
+        }
+        else  {
+            trigger.trigger(0 /* zero connections*/, 'fail');
+            logger.debug('[HEALTH CHECK] KAFKA CONNECTION NOK');
+        }
     }).catch(error => {
         trigger.trigger(0 /* zero connections*/, 'fail', error);
         logger.debug('[HEALTH CHECK] KAFKA CONNECTION NOK');
