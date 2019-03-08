@@ -74,7 +74,7 @@ const cpu = {
 
 const cpuCollector = (trigger = DataTrigger) => {
     let ncpu = os.cpus().length;
-    let lcpu = os.loadavg()[5]; //last five minute
+    let lcpu = os.loadavg()[1]; //last five minute
     let pcpu = (100 * lcpu/ncpu).toFixed(2);
     if (pcpu > 75) {
         trigger.trigger(pcpu, 'warn');
