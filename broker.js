@@ -7,19 +7,19 @@ const config = require('./config');
 class InitializationFailed extends Error {
     constructor(...args) {
         super(...args);
-    }    
+    }
 }
 
 class InvalidSubject extends Error {
     constructor(...args) {
         super(...args);
-    }    
+    }
 }
 
 class InvalidTenant extends Error {
     constructor(...args) {
         super(...args);
-    }    
+    }
 }
 
 class InternalError extends Error {
@@ -38,17 +38,42 @@ class BrokerHandler {
 
     init() {
         return new Promise((resolve, reject) => {
-            try{           
+            try{
                 for(let subject of this.allowedSubjects) {
                     this.dojotMessenger.createChannel(subject, "w", false);
                     logger.info(`Created writable channel for subject ${subject}.`);
                 }
+
                 resolve();
             }
             catch(error) {
                 logger.error(`Failed to configure channels in dojot messenger (${error}).`);
                 reject(new InitializationFailed(`Broker handler couldn't be initialized.`));
             }
+        });
+    }
+
+    status() {
+        return new Promise((resolve, reject) => {
+            let brokerStatus = {
+                connected: false
+            };
+            this.dojotMessenger.producer.producer.getMetadata({timeout: 3000},
+                (error, metadata) => {
+                    if (error) {
+                        logger.error(`Failed to get kafka metadata (${error}).`);
+                        reject(new InternalError('Internal error while getting kafka metadata.'));
+                    }
+                    else {
+                        brokerStatus.connected = true;
+                        brokerStatus.details = {
+                            producer: {
+                                metadata: metadata
+                            }
+                        }
+                        resolve(brokerStatus);
+                    }
+              });
         });
     }
 
@@ -63,9 +88,9 @@ class BrokerHandler {
     send(tenant, req) {
         return new Promise((resolve, reject) => {
             try {
-                // The messenger method for publishing to kafka 
+                // The messenger method for publishing to kafka
                 // logs error conditions, but doesn't return them.
-                // It is some like silent. 
+                // It is some like silent.
 
                 // validate tenant
                 if(!this._isTenantValid(tenant)) {
