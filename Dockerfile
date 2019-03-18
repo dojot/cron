@@ -9,6 +9,8 @@ COPY package-lock.json ./package-lock.json
 RUN npm install
 
 FROM node:8.14.0-alpine
+RUN apk add --no-cache tini
+ENTRYPOINT ["/sbin/tini", "--"]
 
 COPY --from=basis /opt/cron /opt/cron
 WORKDIR /opt/cron
