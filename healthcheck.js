@@ -5,7 +5,6 @@ const pjson = require('./package.json');
 const config = require('./config');
 const HealthChecker = require('@dojot/healthcheck').HealthChecker;
 const DataTrigger = require('@dojot/healthcheck').DataTrigger;
-const logger = require("@dojot/dojot-module-logger").logger;
 
 // cron Manager
 var cronManager = null; // initialized at init()
@@ -30,7 +29,6 @@ const uptime = {
 const uptimeCollector = (trigger = DataTrigger) => {
     let value = Math.floor(process.uptime());
     trigger.trigger(value, 'pass');
-    logger.debug(`[HEALTH CHECK] SYSTEM UPTIME ${value}`);
     return value;
 };
 
@@ -56,7 +54,6 @@ const memoryCollector = (trigger = DataTrigger) => {
     else {
         trigger.trigger(pmem, 'pass');
     }
-    logger.debug(`[HEALTH CHECK] MEMORY UTILIZATION ${pmem}`);
     return pmem;
 };
 
@@ -82,7 +79,6 @@ const cpuCollector = (trigger = DataTrigger) => {
     else {
         trigger.trigger(pcpu, 'pass');
     }
-    logger.debug(`[HEALTH CHECK] CPU UTILIZATION ${pcpu}`);
     return pcpu;
 };
 
@@ -100,15 +96,12 @@ const mongodb = {
 const mongodbCollector = (trigger = DataTrigger) => {
     return cronManager.db.status().then(status => {
         if (status.connected) {
-            logger.debug('[HEALTH CHECK] MONGODB CONNECTION OK');
             trigger.trigger(1 /*one connection */, 'pass');
         }
         else {
-            logger.debug('[HEALTH CHECK] MONGODB CONNECTION NOK');
             trigger.trigger(0 /*one connection */, 'fail');
         }
     }).catch(error => {
-        logger.debug('[HEALTH CHECK] MONGODB CONNECTION OK');
         trigger.trigger(0 /* zero connections*/, 'fail', error);
     });
 };
@@ -128,15 +121,12 @@ const kafkaCollector = (trigger = DataTrigger) => {
     return cronManager.brokerHandler.status().then(status => {
         if (status.connected) {
             trigger.trigger(1 /*one connection */, 'pass');
-            logger.debug('[HEALTH CHECK] KAFKA CONNECTION OK');
         }
         else  {
             trigger.trigger(0 /* zero connections*/, 'fail');
-            logger.debug('[HEALTH CHECK] KAFKA CONNECTION NOK');
         }
     }).catch(error => {
         trigger.trigger(0 /* zero connections*/, 'fail', error);
-        logger.debug('[HEALTH CHECK] KAFKA CONNECTION NOK');
     });
 };
 
