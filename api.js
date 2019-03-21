@@ -8,6 +8,7 @@ const authChecker = require('./auth');
 const timeParser = require('cron-parser');
 const cron = require('./cron');
 const config = require('./config');
+const healthcheck = require('@dojot/healthcheck');
 
 // Http server
 const app = express();
@@ -40,7 +41,7 @@ const errors = {
       sregex:    {error: 115, message: '(http action) Invalid regular expression for criterion 2.'},
       fregex:    {error: 116, message: '(http action) Invalid regular expression for criterion 3.'},
       body:      {error: 117, message: '(http action) Invalid body'}
-    },      
+    },
     // data broker
     broker: {
       subject:   {error: 121, message: '(broker action) Invalid subject.'},
@@ -80,24 +81,24 @@ app.post('/cron/v1/jobs',[
         return false;
       }
 
-      return true; 
+      return true;
     }),
-  
+
   // timezone validation
   body('timezone', errors.invalid.timezone)
   .optional().isString(),
-  
+
   // name validation
   body('name', errors.invalid.name)
   .optional().isString().isLength({max: 128}),
-  
+
   // description validation
   body('description', errors.invalid.description)
   .optional().isString().isLength({max: 1024}),
-  
+
   // endpoints validation
   oneOf([
-    
+
     // http
     [
       //http-method
@@ -119,7 +120,7 @@ app.post('/cron/v1/jobs',[
         }
         return false;
       }),
-      
+
       //http-headers
        body('http.headers', errors.invalid.http.headers)
        .optional().custom(value => {
@@ -127,7 +128,7 @@ app.post('/cron/v1/jobs',[
           try {
             // json
             let headers = JSON.stringify(value);
-            
+
             // max:2048
             if(headers.length <= 2048) {
               return true;
@@ -142,19 +143,19 @@ app.post('/cron/v1/jobs',[
           }
           return false;
        }),
-      
+
        //http-criterion
        body('http.criterion', errors.invalid.http.criterion)
        .optional().isInt({min: 1, max:3}),
-      
+
        //http-sregex
        body('http.sregex', errors.invalid.http.sregex)
        .optional().isString().isLength({max: 256}),
-      
+
        //http-fregex
        body('http.fregex', errors.invalid.http.fregex)
        .optional().isString().isLength({max: 256}),
-      
+
        //http-body
        body('http.body', errors.invalid.http.body)
        .optional().custom(value => {
@@ -163,7 +164,7 @@ app.post('/cron/v1/jobs',[
         try {
           // json
           let body = JSON.stringify(value);
-          
+
           // max: 8192
           if(body.length <= 8192) {
             return true;
@@ -183,8 +184,8 @@ app.post('/cron/v1/jobs',[
     [
       // broker-subject
       body('broker.subject', errors.invalid.broker.subject)
-      .isString().isLength({max: 128}),      
-      
+      .isString().isLength({max: 128}),
+
       // broker-message
       body('broker.message', errors.invalid.broker.message)
       .custom(value => {
@@ -193,7 +194,7 @@ app.post('/cron/v1/jobs',[
         try {
           // json
           let message = JSON.stringify(value);
-          
+
           // max:8192
           if(message.length <= 8192) {
             return true;
@@ -210,7 +211,7 @@ app.post('/cron/v1/jobs',[
       })
     ]
   ], errors.invalid.action)
-  ], 
+  ],
   // handler
   (req, res) => {
     const validationErrors = validationResult(req);
@@ -327,9 +328,10 @@ app.delete('/cron/v1/jobs/:id',[],
 
 
 module.exports = {
-    init: (mgr) => {
+    init: (mgr, hc) => {
       cronManager = mgr;
       app.use('/cron/v1/', dojotLogger.getHTTPRouter());
+      app.use('/cron/v1/', healthcheck.getHTTPRouter(hc));
       app.listen(5000, () => {logger.info('[api] Cron service listening on port 5000');});
     }
   };

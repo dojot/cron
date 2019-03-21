@@ -25,16 +25,43 @@ class DB {
     }
 
     init() {
-        return mongo.connect(config.cronManager.db.mongodb.url, 
+        return mongo.connect(config.cronManager.db.mongodb.url,
             config.cronManager.db.mongodb.options).then((client) => {
             this.client = client;
           });
     }
 
+    status() {
+        return new Promise((resolve, reject) => {
+            let dbStatus = {
+                connected: false
+            };
+            let isConnected = this.client.isConnected();
+            if (isConnected) {
+                dbStatus.connected = true;
+
+                let dbStatsPromises = [];
+                for (let entry of this.databases.values()) {
+                    dbStatsPromises.push(entry.db.stats());
+                }
+                Promise.all(dbStatsPromises).then(allDbStats => {
+                    dbStatus.details = allDbStats;
+                    resolve(dbStatus);
+                }).catch(error => {
+                    logger.debug(`Failed to get database status (${error})`);
+                    reject(new InternalError(`Internal error while getting database status.`));
+                });
+            }
+            else {
+                resolve(dbStatus);
+            }
+        });
+    }
+
     createDatabase(tenant) {
         let key = tenant;
         let db = this.client.db('cron_' + tenant);
-        let collection = db.collection('jobs'); 
+        let collection = db.collection('jobs');
         logger.info(`Created collection jobs into database ${'cron_' + tenant}.`);
         let entry = {
             db: db,
