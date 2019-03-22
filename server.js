@@ -7,7 +7,7 @@ const logger = require("@dojot/dojot-module-logger").logger;
 
 logger.setLevel("info");
 
-process.on('unhandledRejection', (reason, _promise) => {
+process.on('unhandledRejection', (reason) => {
     logger.error(`Unhandled Rejection at: ${reason.stack || reason}. Bailing out!!`);
     process.kill(process.pid, "SIGTERM");
 });
