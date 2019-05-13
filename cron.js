@@ -273,7 +273,7 @@ class CronManager {
 
     deleteAllJobs(tenant) {
         let deleteJobPromises = [];
-        for(let [key, _] of this.crontab) {
+        for(let [key, ] of this.crontab) {
             let [_tenant, jobId] = key.split(':');
             if(_tenant === tenant) {
                 deleteJobPromises.push(this.deleteJob(tenant, jobId));
