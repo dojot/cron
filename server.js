@@ -2,10 +2,11 @@
 
 const cron = require('./cron');
 const api = require('./api');
+const config = require('./config')
 const healthcheck = require('./healthcheck');
 const logger = require("@dojot/dojot-module-logger").logger;
 
-logger.setLevel("info");
+logger.setLevel(config.logger.level);
 
 process.on('unhandledRejection', (reason) => {
     logger.error(`Unhandled Rejection at: ${reason.stack || reason}. Bailing out!!`);

@@ -1,12 +1,13 @@
 #!/bin/bash
 
-USAGE="$0 -d <dojot-url> -u <dojot-user> -p <dojot-password>"
+USAGE="$0 -d <dojot-url> -u <dojot-user> -p <dojot-password> [-j <job-id>]"
 
-while getopts "d:u:p:" options; do
+while getopts "d:u:p:j:" options; do
   case $options in
     d ) DOJOT_URL=$OPTARG;;
     u ) DOJOT_USERNAME=$OPTARG;;
     p ) DOJOT_PASSWD=$OPTARG;;
+    j ) CRON_JOB_ID=$OPTARG;;
     \? ) echo ${USAGE}
          exit 1;;
     * ) echo ${USAGE}
@@ -33,14 +34,14 @@ TEMPLATE_ID=$(curl --silent -X POST ${DOJOT_URL}/template \
 -H 'Content-Type:application/json' \
 -H "Authorization: Bearer ${JWT}" \
 -d  '{
-       "label": "CronBrokerJobTemplate", 
+       "label": "CronBrokerJobTemplate",
        "attrs": [
                   {
-                    "label": "message",     
-                    "type": "actuator", 
+                    "label": "message",
+                    "type": "actuator",
                     "value_type": "string"}
                ]
-    }' | jq '.template.id' | tr -d '"')
+    }' | jq '.template.id')
 echo "... Created template ${TEMPLATE_ID}."
 
 # Create Device
@@ -52,12 +53,20 @@ DEVICE_ID=$(curl --silent -X POST ${DOJOT_URL}/device \
         \"templates\": [\"${TEMPLATE_ID}\"],
         \"attrs\": {},
         \"label\": \"CronBrokerJobDevice\"
-    }" | jq '.devices[0].id' | tr -d '"')
+    }" | jq '.devices[0].id')
 echo "... Created device ${DEVICE_ID}."
 
 # Create Data Broker Job
+REQUEST_COMMAND='POST'
+FULL_URL="${DOJOT_URL}/cron/v1/jobs"
+if [ ! -z ${CRON_JOB_ID} ]
+then
+    REQUEST_COMMAND='PUT'
+    FULL_URL="${DOJOT_URL}/cron/v1/jobs/${CRON_JOB_ID}"
+fi
+
 echo 'Scheduling a cron job (keepalive) ...'
-RESPONSE=$(curl -w "\n%{http_code}" --silent -X POST ${DOJOT_URL}/cron/v1/jobs \
+RESPONSE=$(curl -w "\n%{http_code}" --silent -X ${REQUEST_COMMAND} ${FULL_URL} \
 -H "Content-Type:application/json" \
 -H "Authorization: Bearer ${JWT}" \
 -d "{
@@ -65,29 +74,33 @@ RESPONSE=$(curl -w "\n%{http_code}" --silent -X POST ${DOJOT_URL}/cron/v1/jobs \
       \"timezone\": \"America/Sao_Paulo\",
       \"name\": \"Keep alive\",
       \"description\": \"This job sends a keep alive notification to a device every 5 minutes\",
-      \"http\": {
-                  \"method\": \"PUT\",
-                  \"headers\": {
-                                \"Authorization\": \"Bearer ${JWT}\",
-                                \"Content-Type\": \"application/json\"
-                              },
-                  \"url\": \"http://device-manager:5000/device/${DEVICE_ID}/actuate\",
-                  \"body\": {
-                              \"attrs\": { 
-                                            \"message\": \"keepalive\"
-                                          }
-                            }
-                }
+      \"broker\": {
+                    \"subject\": \"dojot.device-manager.device\",
+                    \"message\": {
+                                  \"event\": \"configure\",
+                                  \"data\": {
+                                             \"attrs\": { \"message\": \"keepalive\"},
+                                             \"id\": ${DEVICE_ID}
+                                            },
+                                    \"meta\": {
+                                              \"service\": \"admin\"
+                                              }
+                                }
+                  }
     }")
-RESPONSE=(${RESPONSE[@]}) # convert to array
+RESPONSE=(${RESPONSE[@]}) # convert to ar ray
 HTTP_STATUS=${RESPONSE[-1]} # get last element (last line)
 BODY=(${RESPONSE[@]::${#RESPONSE[@]}-1}) # get all elements except last
 
 if [ "${HTTP_STATUS}" == "201" ]
 then
-  echo "... Succeeded to schedule job."
+  echo "... Succeeded to create cron job."
+  echo "${BODY[*]}"
+elif [ "${HTTP_STATUS}" == "200" ]
+then
+  echo "... Succeeded to update cron job."
   echo "${BODY[*]}"
 else
-  echo '... Failed to schedule cron job.'
+  echo '... Failed to create cron job.'
   echo "${BODY[*]}"
 fi
