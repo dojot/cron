@@ -88,7 +88,7 @@ RESPONSE=$(curl -w "\n%{http_code}" --silent -X ${REQUEST_COMMAND} ${FULL_URL} \
                                 }
                   }
     }")
-RESPONSE=(${RESPONSE[@]}) # convert to ar ray
+RESPONSE=(${RESPONSE[@]}) # convert to array
 HTTP_STATUS=${RESPONSE[-1]} # get last element (last line)
 BODY=(${RESPONSE[@]::${#RESPONSE[@]}-1}) # get all elements except last
 
