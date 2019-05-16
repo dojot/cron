@@ -1,6 +1,6 @@
 #!/bin/bash
 
-USAGE="$0 -d <dojot-url> -u <dojot-user> -p <dojot-password> -j <job-id>"
+USAGE="$0 -d <dojot-url> -u <dojot-user> -p <dojot-password> [-j <job-id>]"
 
 while getopts "d:u:p:j:" options; do
   case $options in
@@ -15,8 +15,8 @@ while getopts "d:u:p:j:" options; do
   esac
 done
 
-if [ -z ${DOJOT_URL} ] || [ -z ${DOJOT_USERNAME} ] || 
-   [ -z ${DOJOT_PASSWD} ] ||    [ -z ${CRON_JOB_ID} ]
+if [ -z ${DOJOT_URL} ] || [ -z ${DOJOT_USERNAME} ] ||
+   [ -z ${DOJOT_PASSWD} ]
 then
     echo ${USAGE}
     exit 1
@@ -30,8 +30,14 @@ JWT=$(curl --silent -X POST ${DOJOT_URL}/auth \
 echo "... Got jwt token ${JWT}."
 
 
-# Delete cron job
-echo "Deleting cron job ${CRON_JOB_ID} ..."
+# Delete cron job(s)
+if [ -z ${CRON_JOB_ID} ]
+then
+  echo "Deleting all cron jobs ..."
+else
+    echo "Deleting cron job ${CRON_JOB_ID} ..."
+fi
+
 RESPONSE=$(curl -w "\n%{http_code}" --silent -X DELETE ${DOJOT_URL}/cron/v1/jobs/${CRON_JOB_ID} \
 -H "Authorization: Bearer ${JWT}")
 RESPONSE=(${RESPONSE[@]}) # convert to array
@@ -40,8 +46,8 @@ BODY=(${RESPONSE[@]::${#RESPONSE[@]}-1}) # get all elements except last
 
 if [ "${HTTP_STATUS}" == "204" ]
 then
-  echo "... Succeeded to delete job."
+  echo "... Succeeded to delete job(s)."
 else
-  echo "... Failed to delete job."
+  echo "... Failed to delete job(s)."
   echo "${BODY[*]}"
 fi

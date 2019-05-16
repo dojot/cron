@@ -251,10 +251,219 @@ app.post('/cron/v1/jobs',[
 // TODO
 // PUT /cron/v1/jobs/:id
 // 200 Ok
-// 204 No Content
 // 201 Created
-// 404 Not Found
 // 500 Internal Server Error
+app.put('/cron/v1/jobs/:id', [
+  // cron time validation
+  body('time', errors.invalid.time)
+  .custom(value => {
+    try {
+        const isValid = timeParser.parseString(value);
+        if (typeof isValid.error != 'undefined' && isValid.error.length > 0) {
+          logger.debug(`Couldn't parse cron time (${isValid.error}).`);
+          return false;
+        }
+      }
+      catch(error) {
+        logger.debug(`Couldn't parse cron time (${error}).`);
+        return false;
+      }
+
+      return true;
+    }),
+
+  // timezone validation
+  body('timezone', errors.invalid.timezone)
+  .optional().isString(),
+
+  // name validation
+  body('name', errors.invalid.name)
+  .optional().isString().isLength({max: 128}),
+
+  // description validation
+  body('description', errors.invalid.description)
+  .optional().isString().isLength({max: 1024}),
+
+  // endpoints validation
+  oneOf([
+
+    // http
+    [
+      //http-method
+      body('http.method', errors.invalid.http.method).isIn(
+        [
+         'post', 'POST', 'get', 'GET', 'put', 'PUT', 'delete',  'DELETE',
+         'head', 'HEAD', 'patch', 'PATCH', 'connect', 'CONNECT',
+         'options', 'OPTIONS', 'trace', 'TRACE'
+        ]),
+
+      //http-url
+      body('http.url', errors.invalid.http.url)
+      .custom(value => {
+        // allowed base URLs
+        for(let baseURL of config.cronManager.actions.http.allowedBaseURLs) {
+          if(value.startsWith(baseURL)) {
+            return true;
+          }
+        }
+        return false;
+      }),
+
+      //http-headers
+       body('http.headers', errors.invalid.http.headers)
+       .optional().custom(value => {
+         if (!value) return true;
+          try {
+            // json
+            let headers = JSON.stringify(value);
+
+            // max:2048
+            if(headers.length <= 2048) {
+              return true;
+            }
+            else {
+              logger.debug(`HTTP headers exceeded maximum length (${headers.length} > 2048).`);
+            }
+          }
+          catch(error) {
+            logger.debug(`Couldn't parse headers for http-action (${error}).`);
+            return false;
+          }
+          return false;
+       }),
+
+       //http-criterion
+       body('http.criterion', errors.invalid.http.criterion)
+       .optional().isInt({min: 1, max:3}),
+
+       //http-sregex
+       body('http.sregex', errors.invalid.http.sregex)
+       .optional().isString().isLength({max: 256}),
+
+       //http-fregex
+       body('http.fregex', errors.invalid.http.fregex)
+       .optional().isString().isLength({max: 256}),
+
+       //http-body
+       body('http.body', errors.invalid.http.body)
+       .optional().custom(value => {
+        if (!value) return false;
+
+        try {
+          // json
+          let body = JSON.stringify(value);
+
+          // max: 8192
+          if(body.length <= 8192) {
+            return true;
+          }
+          else {
+            logger.debug(`HTTP body exceeded maximum length (${body.length} > 8192).`);
+          }
+        }
+        catch(error) {
+          logger.debug(`Couldn't parse body for http-action (${error}).`);
+          return false;
+        }
+        return false;
+       })
+      ],
+    // broker
+    [
+      // broker-subject
+      body('broker.subject', errors.invalid.broker.subject)
+      .isString().isLength({max: 128}),
+
+      // broker-message
+      body('broker.message', errors.invalid.broker.message)
+      .custom(value => {
+        if (! value) return false;
+
+        try {
+          // json
+          let message = JSON.stringify(value);
+
+          // max:8192
+          if(message.length <= 8192) {
+            return true;
+          }
+          else {
+            logger.debug(`Broker message exceeded maximum length (${message.length} > 8192).`);
+          }
+        }
+        catch(error) {
+          logger.debug(`Couldn't parse message for broker-action (${error}).`);
+          return false;
+        }
+        return false;
+      })
+    ]
+  ], errors.invalid.action)
+],
+// handler
+async (req, res) => {
+  const validationErrors = validationResult(req);
+  if (!validationErrors.isEmpty()) {
+
+    let errors = [];
+    for(let error of validationErrors.array()) {
+      errors.push(error.msg);
+      if(error.hasOwnProperty('nestedErrors')) {
+        for(let nestedError of error.nestedErrors) {
+          errors.push(nestedError.msg);
+        }
+      }
+    }
+    return res.status(400).json({ status: 'error', errors: errors });
+  }
+
+  let jobId = req.params.id || null;
+
+  let jobSpec = {
+    time: req.body.time,
+    timezone: req.body.timezone || 'UTC',
+    name: req.body.name,
+    description: req.body.description,
+    http: req.body.http,
+    broker: req.body.broker,
+    jscode: req.body.jscode
+  };
+
+  // To keep the things simpler as possible, the
+  // update operation is implemented by a remove
+  // operation followed by a create operation.
+
+  // step 1: Remove-if job exists
+  let existingJob = null;
+  try {
+    existingJob = await cronManager.deleteJob(req.service /*tenant*/,jobId);
+  }
+  catch (error) {
+    if(!(error instanceof cron.JobNotFound)) {
+      logger.debug(`Something unexpected happened (${error})`);
+      return res.status(500).json({status: 'error', errors: [errors.internal]});
+    }
+  }
+
+  let successReturnValue;
+  if(existingJob) {
+    logger.debug(`Replacing job ${JSON.stringify(existingJob)} by ${JSON.stringify({jobId: jobId, spec: jobSpec})}`);
+    successReturnValue = 200;
+  }
+  else {
+    logger.debug(`Creating job ${JSON.stringify({jobId: jobId, spec: jobSpec})}`);
+    successReturnValue = 201;
+  }
+
+  // step 2: Create job with the given identifier
+  cronManager.createJob(req.service /*tenant*/, jobSpec, jobId).then((jobId) => {
+    return res.status(successReturnValue).json({status: 'success', jobId: jobId});
+  }).catch(error => {
+    logger.debug(`Something unexpected happened (${error})`);
+    return res.status(500).json({status: 'error', errors: [errors.internal]});
+  });
+
+});
 
 // TODO
 // GET /cron/v1/jobs?search=<name>
@@ -303,27 +512,41 @@ app.get('/cron/v1/jobs/:id?',[],
 
 
 // DELETE /cron/v1/jobs/:id
-app.delete('/cron/v1/jobs/:id',[],
+app.delete('/cron/v1/jobs/:id?',[],
  // handler
  (req, res) => {
 
   let jobId = req.params.id || null;
 
-  cronManager.deleteJob(req.service /*tenant*/, jobId).then(
-    () => {
-      return res.status(204).send();
-    }).catch(
-      error => {
-        if(error instanceof cron.JobNotFound) {
-          logger.debug(`Job ${jobId} not found.`);
-          return res.status(404).json({status: 'error', errors: [errors.notfound]});
-        }
-        else {
+  // delete one
+  if(jobId) {
+    cronManager.deleteJob(req.service /*tenant*/, jobId).then(
+      () => {
+        return res.status(204).send();
+      }).catch(
+        error => {
+          if(error instanceof cron.JobNotFound) {
+            logger.debug(`Job ${jobId} not found.`);
+            return res.status(404).json({status: 'error', errors: [errors.notfound]});
+          }
+          else {
+            logger.debug(`Something unexpected happened (${error})`);
+            return res.status(500).json({status: 'error', errors: [errors.internal]});
+          }
+        });
+  }
+  // delete all
+  else {
+    cronManager.deleteAllJobs(req.service /*tenant*/).then(
+      () => {
+        return res.status(204).send();
+      }).catch(
+        (error) => {
           logger.debug(`Something unexpected happened (${error})`);
           return res.status(500).json({status: 'error', errors: [errors.internal]});
-        }
-      });
-    }
+        });
+      }
+}
 );
 
 

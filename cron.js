@@ -78,7 +78,7 @@ class CronManager {
         return new Promise((resolve, reject) => {
             // stop existing jobs for the corresponding tenant
             this.db.readAll(tenant).then((jobs) => {
-            
+
                 let cronJobUnsetPromises = [];
                 for(let job of jobs) {
                     cronJobUnsetPromises.push(this._unsetCronJob(tenant, job.jobId));
@@ -111,8 +111,8 @@ class CronManager {
             try {
                 // cron job
                 let job = new CronJob(jobSpec.time, () => {
-                    logger.debug(`Executing cron job ${jobId} ...`);            
-                    
+                    logger.debug(`Executing cron job ${jobId} ...`);
+
                     // http action
                     if (jobSpec.http) {
                         this.httpHandler.send(tenant, jobSpec.http).then(() => {
@@ -142,7 +142,7 @@ class CronManager {
                 // start job
                 job.start();
                 logger.info(`Succeeded to set up cron job ${jobId} with spec ${JSON.stringify(jobSpec)}.`);
-                
+
                 resolve();
             }
             catch(error) {
@@ -178,7 +178,7 @@ class CronManager {
 
     init() {
         logger.info('Initializing cron service ...');
-        
+
         // dojot messenger
         return this.dojotMessenger.init().then(()=>{
             logger.info('Communication with dojot messenger service (kafka) was established.');
@@ -197,16 +197,16 @@ class CronManager {
             logger.info('Read-only channel for tenancy events was created.');
 
             // tenancy channel: new-tenant event
-            this.dojotMessenger.on(config.kafkaMessenger.dojot.subjects.tenancy, 
+            this.dojotMessenger.on(config.kafkaMessenger.dojot.subjects.tenancy,
                 'new-tenant', (_tenant, newtenant) => {
                     this._setTenant(newtenant);
             });
-            
+
             let tenantSetPromises = [];
             for(let tenant of this.dojotMessenger.tenants) {
                 tenantSetPromises.push(this._setTenant(tenant));
             }
-            return Promise.all(tenantSetPromises);      
+            return Promise.all(tenantSetPromises);
         }).catch(error => {
             // something unexpected happended!
             logger.error(`Couldn't initialize the cron manager (${error}).`);
@@ -214,19 +214,19 @@ class CronManager {
         });
     }
 
-    createJob(tenant, jobSpec) {
+    createJob(tenant, jobSpec, jobId = null) {
         return new Promise((resolve, reject) => {
             // job id
-            let jobId = uuidv4();
+            let _jobId = jobId || uuidv4();
 
             // db -job
             let dbEntry = {
-                jobId: jobId,
+                jobId: _jobId,
                 spec: jobSpec
             };
             this.db.create(tenant, dbEntry).then(() => {
-                this._setCronJob(tenant, jobId, jobSpec).then(() => {
-                    resolve(jobId);
+                this._setCronJob(tenant, _jobId, jobSpec).then(() => {
+                    resolve(_jobId);
                 }).catch(error => {
                     logger.debug(`Couldn't set cron job (${error}).`);
                     reject(new InternalError('Internal error while setting cron job.'));
@@ -269,6 +269,17 @@ class CronManager {
     deleteJob(tenant, jobId) {
         // promise
         return this._unSetCronJob(tenant, jobId);
+    }
+
+    deleteAllJobs(tenant) {
+        let deleteJobPromises = [];
+        for(let [key, ] of this.crontab) {
+            let [_tenant, jobId] = key.split(':');
+            if(_tenant === tenant) {
+                deleteJobPromises.push(this.deleteJob(tenant, jobId));
+            }
+        }
+        return Promise.all(deleteJobPromises);
     }
 }
 
