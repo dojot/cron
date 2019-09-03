@@ -99,5 +99,9 @@ module.exports = {
         mongodb: process.env.HC_MONGODB_TIMEOUT || 30000,
         kafka: process.env.HC_KAFKA_TIMEOUT || 30000
       }
+    },
+
+    logger: {
+      level: process.env.LOG_LEVEL || "info"
     }
 };

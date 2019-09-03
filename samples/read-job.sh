@@ -1,6 +1,6 @@
 #!/bin/bash
 
-USAGE="$0 -d <dojot-url> -u <dojot-user> -p <dojot-password> -j <job-id>"
+USAGE="$0 -d <dojot-url> -u <dojot-user> -p <dojot-password> [-j <job-id>]"
 
 while getopts "d:u:p:j:" options; do
   case $options in
@@ -15,7 +15,7 @@ while getopts "d:u:p:j:" options; do
   esac
 done
 
-if [ -z ${DOJOT_URL} ] || [ -z ${DOJOT_USERNAME} ] || 
+if [ -z ${DOJOT_URL} ] || [ -z ${DOJOT_USERNAME} ] ||
    [ -z ${DOJOT_PASSWD} ]
 then
     echo ${USAGE}
@@ -31,9 +31,14 @@ echo "... Got jwt token ${JWT}."
 
 
 # Get cron job
-echo "Getting cron job ${CRON_JOB_ID} ..."
+if [ -z ${CRON_JOB_ID} ]
+then
+  echo "Getting all cron jobs ..."
+else
+    echo "Getting cron job ${CRON_JOB_ID} ..."
+fi
 RESPONSE=$(curl --silent -X GET ${DOJOT_URL}/cron/v1/jobs/${CRON_JOB_ID} \
 -H "Authorization: Bearer ${JWT}")
 
-echo "... Got cron job response:" 
+echo "... Got cron job response:"
 echo "${RESPONSE}"
