@@ -10,4 +10,6 @@ script:
   - 'docker build -t ${TRAVIS_REPO_SLUG} .'
 
 after_success:
+  - chmod +x travis/deploy-gh-pages.sh
   - travis/publish.sh
+  - travis/deploy-gh-pages.sh
