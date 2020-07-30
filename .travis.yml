@@ -6,9 +6,9 @@ services:
 node_js:
   - '8'
 
-script:
-  - 'docker build -t ${TRAVIS_REPO_SLUG} .'
+#script:
+#  - 'docker build -t ${TRAVIS_REPO_SLUG} .'
 
 after_success:
-  - travis/publish.sh
+  #- travis/publish.sh
   - travis/deploy-gh-pages.sh
