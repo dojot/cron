@@ -6,6 +6,12 @@ rm -fr ./_static
 mv docs/* . -f
 git rm -r docs
 
+echo "1"
+echo "branch: ${TRAVIS_BRANCH}"
+git status
+ls
+echo "1"
+
 if [ "${TRAVIS_BRANCH}" == "master" ]
 then
   export VERSION="latest"
@@ -15,8 +21,24 @@ fi
 
 docker run --volume $(pwd):/temp:Z dojot/aglio -i /temp/api.apib -o - > ./apiary_${VERSION}.html
 
+
+
 git add apiary_${VERSION}.html
+
+echo "2"
+echo "VERSION: ${VERSION}"
+git status
+ls
+echo "2"
+
 git commit -m 'Updating gh-pages' --amend
+
+echo "2"
+echo "VERSION: ${VERSION}"
+git status
+ls
+echo "2"
+
 git push --force http://${GITHUB_TOKEN}:x-oauth-basic@github.com/${TRAVIS_REPO_SLUG} gh-pages
 git checkout -- .
 git clean -fd
