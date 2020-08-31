@@ -5,7 +5,9 @@ if [ $TRAVIS_PULL_REQUEST == false ] ; then
     version=$TRAVIS_BRANCH
   fi
 
-  tag=${TRAVIS_REPO_SLUG}:$version
+  DOCKER_TAG=$(echo ${version} | sed 's/\(.*\)\/\(.*\)/\1_\2/')
+
+  tag=${TRAVIS_REPO_SLUG}:${DOCKER_TAG}
 
   docker login -u="${DOCKER_USERNAME}" -p="${DOCKER_PASSWORD}"
   docker tag ${TRAVIS_REPO_SLUG} ${tag}
