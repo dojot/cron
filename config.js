@@ -56,6 +56,16 @@ module.exports = {
           tenancy: process.env.DOJOT_SUBJECT_TENANCY || "dojot.tenancy",
           devices: process.env.DOJOT_SUBJECT_DEVICES || "dojot.device-manager.device",
           deviceData: process.env.DOJOT_SUBJECT_DEVICE_DATA || "device-data",
+        },
+        events:{
+          tenantEvent: {
+            NEW_TENANT: "new-tenant",
+            DELETE_TENANT: "delete-tenant"
+          },
+          tenantActionType: {
+            CREATE: "create",
+            DELETE: "delete"
+          }
         }
       }
     },
