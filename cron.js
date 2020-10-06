@@ -198,7 +198,7 @@ class CronManager {
 
             // tenancy channel: new-tenant event
             this.dojotMessenger.on(config.kafkaMessenger.dojot.subjects.tenancy,
-                'new-tenant', (_tenant, newtenant) => {
+                config.kafkaMessenger.dojot.events.tenantEvent.NEW_TENANT, (_tenant, newtenant) => {
                     this._setTenant(newtenant);
             });
 
