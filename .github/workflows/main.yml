@@ -84,8 +84,7 @@ jobs:
         PATH_APIB: ./docs/api.apib
         VERSION_NAME: ${{ steps.version_doc.outputs.version }}
       run: |
-        sh .github/workflows/scripts/doc_aglio_api.sh
-      
+        sh .github/workflows/scripts/doc_aglio_api.sh 
     - name: Publish Documentation
       uses: peaceiris/actions-gh-pages@v3
       with:
