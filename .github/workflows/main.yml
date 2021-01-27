@@ -9,7 +9,7 @@ on:
 jobs:
   npm-build:
     # Path to help identify each job in the status checks
-    name: Unit Tests
+    name: NPM Build
     # If the commit message contains 'ci skip', it is not necessary to run this job
     if: contains(github.event.head_commit.message, 'ci skip') == false
     runs-on: ubuntu-latest
@@ -88,7 +88,6 @@ jobs:
     - name: Publish Documentation
       uses: peaceiris/actions-gh-pages@v2
       env:
-        PERSONAL_TOKEN: ${{ secrets.GITHUB_TOKEN_PAT }}
         PUBLISH_BRANCH: gh-pages
         PUBLISH_DIR: ./build-docs #fix when use .github/workflows/scripts/doc_aglio_api.sh
       with:
