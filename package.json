@@ -37,7 +37,7 @@
     "@dojot/dojot-module": "^0.1.1",
     "@dojot/dojot-module-logger": "^0.1.0",
     "@dojot/healthcheck": "^0.1.0",
-    "axios": "^0.18.0",
+    "axios": "^0.21.1",
     "cron": "^1.6.0",
     "cron-parser": "^2.7.3",
     "express": "^4.16.4",
