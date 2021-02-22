@@ -85,6 +85,22 @@ class BrokerHandler {
         return (this.allowedSubjects.find(s => s === subject) ? true : false);
     }
 
+    _formatMessage(tenant, subject, message) {
+        // from dojot to device
+        if (subject === 'dojot.device-manager.device') {
+            // overwrite tenant, timestamp
+            message.meta.service = tenant;
+            message.meta.timestamp = Date.now();
+        }
+        // from device to dojot
+        else if (subject === 'device-data') {
+            // overwrite tenant, timestamp
+            message.metadata.tenant = tenant;
+            message.metadata.timestamp = Date.now();
+        }
+        return message;
+    }
+
     send(tenant, req) {
         return new Promise((resolve, reject) => {
             try {
@@ -108,6 +124,16 @@ class BrokerHandler {
 
                 // validate message
                 // TODO
+
+                // format message
+                try {
+                    this._formatMessage(tenant, req.subject, req.message);
+                }
+                catch (error) {
+                    logger.warn(`Failed formatting message ${JSON.stringify(req.message)} `
+                    + `to ${tenant}/${req.subject}`);
+                    return;
+                }
 
                 // publish
                 this.dojotMessenger.publish(req.subject, tenant, JSON.stringify(req.message));
