@@ -8,10 +8,10 @@ on:
 
 jobs:
   npm-build:
-    name: npm Build
+    name: npm build
     # If the commit message contains 'ci skip', it is not necessary to run this job
     if: contains(github.event.head_commit.message, 'ci skip') == false
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-18.04
     strategy:
       matrix:
         node-version: [8.x]
