@@ -70,9 +70,9 @@ app.post('/cron/v1/jobs',[
   body('time', errors.invalid.time)
   .custom(value => {
     try {
-        const isValid = timeParser.parseExpression(value);
-        if (typeof isValid.error != 'undefined' && isValid.error.length > 0) {
-          logger.debug(`Couldn't parse cron time (${isValid.error}).`);
+        const isValid = timeParser.parseString(value);
+        if (typeof isValid.errors != 'undefined' && Object.keys(isValid.errors).length > 0) {
+          logger.debug("Couldn't parse cron time.", isValid.errors);
           return false;
         }
       }
@@ -258,9 +258,9 @@ app.put('/cron/v1/jobs/:id', [
   body('time', errors.invalid.time)
   .custom(value => {
     try {
-        const isValid = timeParser.parseExpression(value);
-        if (typeof isValid.error != 'undefined' && isValid.error.length > 0) {
-          logger.debug(`Couldn't parse cron time (${isValid.error}).`);
+        const isValid = timeParser.parseString(value);
+        if (typeof isValid.errors != 'undefined' && Object.keys(isValid.errors).length > 0) {
+          logger.debug("Couldn't parse cron time.", isValid.errors);
           return false;
         }
       }
