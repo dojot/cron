@@ -34,7 +34,6 @@ class InternalError extends Error {
 
 class BrokerHandler {
   constructor() {
-    // this.dojotMessenger = messenger;
     this.allowedSubjects = config.cronManager.actions.broker.allowedSubjects;
 
     this.producer = new Producer({
@@ -51,24 +50,6 @@ class BrokerHandler {
   }
 
   async init() {
-    // return new Promise((resolve, reject) => {
-    //   try {
-    //     for (let subject of this.allowedSubjects) {
-    //       this.dojotMessenger.createChannel(subject, 'w', false);
-    //       this.logger.info(`Created writable channel for subject ${subject}.`);
-    //     }
-
-    //     resolve();
-    //   } catch (error) {
-    //     this.logger.error(
-    //       `Failed to configure channels in dojot messenger (${error}).`
-    //     );
-    //     reject(
-    //       new InitializationFailed(`Broker handler couldn't be initialized.`)
-    //     );
-    //   }
-    // });
-
     this.logger.info('Initializing Kafka Producer...');
     await this.producer
       .connect()
@@ -87,39 +68,7 @@ class BrokerHandler {
   async status() {
     let brokerStatus = await this.producer.getStatus();
     return brokerStatus;
-    // return new Promise((resolve, reject) => {
-    //   let brokerStatus = {
-    //     connected: false,
-    //   };
-    //   this.dojotMessenger.producer.producer.getMetadata(
-    //     { timeout: 3000 },
-    //     (error, metadata) => {
-    //       if (error) {
-    //         this.logger.error(`Failed to get kafka metadata (${error}).`);
-    //         reject(
-    //           new InternalError('Internal error while getting kafka metadata.')
-    //         );
-    //       } else {
-    //         brokerStatus.connected = true;
-    //         brokerStatus.details = {
-    //           producer: {
-    //             metadata: metadata,
-    //           },
-    //         };
-    //         resolve(brokerStatus);
-    //       }
-    //     }
-    //   );
-    // });
   }
-
-  //   _isTenantValid(tenant) {
-  //     return this.producer.tenants.find((t) => t === tenant) ? true : false;
-  //   }
-
-  //   _isSubjectValid(subject) {
-  //     return this.allowedSubjects.find((s) => s === subject) ? true : false;
-  //   }
 
   _formatMessage(tenant, subject, message) {
     // from dojot to device
@@ -140,35 +89,7 @@ class BrokerHandler {
   send(tenant, req) {
     return new Promise((resolve, reject) => {
       try {
-        // The messenger method for publishing to kafka
-        // logs error conditions, but doesn't return them.
-        // It is some like silent.
-
-        // // validate tenant
-        // if (!this._isTenantValid(tenant)) {
-        //   this.logger.debug(`Failed to publish message (Invalid Tenant).`);
-        //   reject(
-        //     new InvalidTenant(`Broker handler doesn't know tenant ${tenant}`)
-        //   );
-        //   return;
-        // }
-
-        // // validate subject
-        // if (!this._isSubjectValid(req.subject)) {
-        //   this.logger.debug(`Failed to publish message (Invalid Subject)`);
-        //   reject(
-        //     new InvalidSubject(
-        //       `Broker handler doesn't know subject ${req.subject}`
-        //     )
-        //   );
-        //   return;
-        // }
-
-        // validate message
-        // TODO
-
         let message;
-
         // format message
         try {
           message = this._formatMessage(tenant, req.subject, req.message);
