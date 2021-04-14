@@ -30,6 +30,12 @@ class CronManager {
     // cache
     this.crontab = new Map();
 
+    // // dojot messenger
+    // this.dojotMessenger = new dojotModule.Messenger(
+    //   'cron',
+    //   config.kafkaMessenger
+    // );
+
     // database
     this.db = new DB();
 
@@ -339,6 +345,23 @@ class CronManager {
             }
           }
         );
+        
+        // // tenancy channel
+        // this.dojotMessenger.createChannel(
+        //     config.kafkaMessenger.dojot.subjects.tenancy, 'r', true /*global*/);
+        // this.logger.info('Read-only channel for tenancy events was created.');
+
+        // // tenancy channel: new-tenant event
+        // this.dojotMessenger.on(config.kafkaMessenger.dojot.subjects.tenancy,
+        //     config.kafkaMessenger.dojot.events.tenantEvent.NEW_TENANT, (_tenant, newtenant) => {
+        //         this._setTenant(newtenant);
+        // });
+
+        // let tenantSetPromises = [];
+        // for (let tenant of this.dojotMessenger.tenants) {
+        //   tenantSetPromises.push(this._setTenant(tenant));
+        // }
+        // return Promise.all(tenantSetPromises);
       })
       .catch((error) => {
         // something unexpected happended!
