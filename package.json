@@ -5,7 +5,8 @@
   "main": "server.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
-    "check-licenses": "apache2-license-checker"
+    "check-licenses": "apache2-license-checker",
+    "dev": "nodemon --inspect server.js"
   },
   "repository": {
     "type": "git",
@@ -20,7 +21,8 @@
   "author": "Rafael Augusto Scaraficci",
   "contributors": [
     "Mariane Previde",
-    "Wilton Filipe Canatto"
+    "Wilton Filipe Canatto",
+    "Gilmaicor Leandro"
   ],
   "license": "Apache-2.0",
   "licenses": [
@@ -34,8 +36,6 @@
   },
   "homepage": "https://github.com/dojot/cron#readme",
   "dependencies": {
-    "@dojot/dojot-module": "^0.1.1",
-    "@dojot/dojot-module-logger": "^0.1.0",
     "@dojot/healthcheck": "^0.1.0",
     "axios": "^0.18.0",
     "cron": "^1.6.0",
@@ -43,9 +43,12 @@
     "express": "^4.16.4",
     "express-validator": "^5.3.0",
     "uuid": "^3.3.2",
-    "mongodb": "^3.1.13"
+    "mongodb": "^3.1.13",
+    "@dojot/microservice-sdk": "^0.1.11"
   },
   "devDependencies": {
-    "@bbc/apache2-license-checker": "^1.1.4"
+    "@bbc/apache2-license-checker": "^1.1.4",
+    "eslint": "6.8.0",
+    "nodemon": "^2.0.7"
   }
 }
