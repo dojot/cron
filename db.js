@@ -1,8 +1,7 @@
 "use strict";
 
 const mongo = require("mongodb").MongoClient;
-const { Logger } = require("@dojot/microservice-sdk");
-const config = require("./config");
+const { ConfigManager: { getConfig }, Logger } = require("@dojot/microservice-sdk");
 
 // Errors ...
 class DatabaseNotFound extends Error {
@@ -24,13 +23,15 @@ class DB {
     this.databases = new Map();
     // logger
     this.logger = new Logger('db');
+    // ConfigManager
+    this.config = getConfig('CRON');
   }
 
   init() {
     return mongo
       .connect(
-        config.cronManager.db.mongodb.url,
-        config.cronManager.db.mongodb.options
+        this.config.db['mongodb.url'],
+        this.config.dbOptions
       )
       .then((client) => {
         this.client = client;

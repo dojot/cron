@@ -2,17 +2,24 @@
 
 const cron = require("./cron");
 const api = require("./api");
-const config = require("./config");
 const healthcheck = require("./healthcheck");
-const { Logger } = require("@dojot/microservice-sdk");
+const {   
+  ConfigManager: { getConfig, loadSettings },
+  Logger 
+} = require("@dojot/microservice-sdk");
+
+
+const userConfigFile = process.env.K2V_APP_USER_CONFIG_FILE || 'production.conf';
+loadSettings('CRON', userConfigFile);
+const config = getConfig('CRON');
 
 // Logger configuration
 Logger.setVerbose(config.logger.verbose);
 Logger.setTransport('console', { level: config.logger['console.level'] });
-if (config.logger.file.enable) {
+if (config.logger['file.enable']) {
   Logger.setTransport('file', {
-    level: config.logger.file.level,
-    filename: config.logger.file.filename,
+    level: config.logger['file.level'],
+    filename: config.logger['file.filename'],
   });
 }
 const logger = new Logger('server');

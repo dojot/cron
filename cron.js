@@ -1,15 +1,15 @@
 "use strict";
 
 const {
+  ConfigManager: { getConfig },
   Kafka: { Consumer },
   Logger,
 } = require("@dojot/microservice-sdk");
-const CronJob = require("cron").CronJob;
+const { CronJob } = require("cron");
 const uuidv4 = require("uuid/v4");
 const http = require("./http");
 const broker = require("./broker");
-const config = require("./config");
-const DB = require("./db").DB;
+const { DB } = require("./db");
 
 // Errors ...
 class JobNotFound extends Error {
@@ -27,25 +27,22 @@ class InternalError extends Error {
 
 class CronManager {
   constructor() {
-    // cache
     this.crontab = new Map();
 
-    // database
     this.db = new DB();
 
-    // http handler
     this.httpHandler = new http.HttpHandler();
 
-    // broker handler
     this.brokerHandler = new broker.BrokerHandler();
 
-    // logger
     this.logger = new Logger('cron');
 
+    this.config = getConfig('CRON');
+
     this.consumer = new Consumer({
-      ...config.sdk,
-      'kafka.consumer': config.kafkaMessenger.kafka.consumer,
-      'kafka.topic': config.kafkaMessenger.kafka.topic,
+        ...this.config.sdkConsumer,
+        "kafka.consumer": this.config.consumer,
+        "kafka.topic": this.config.topic,
     });
 
     this.idCallbackTenant = null;
@@ -283,7 +280,7 @@ class CronManager {
         );
 
         const topic = new RegExp(
-          `^.+${config.kafkaMessenger.dojot.subjects.tenancy.replace(
+          `^.+${this.config.dojot['subjects.tenancy'].replace(
             /\./g,
             '\\.'
           )}`
@@ -295,7 +292,7 @@ class CronManager {
             try {
               const { value: payload } = data;
               this.logger.debug(
-                `registerCallbackForTenantEvents: Receiving data ${payload.toString()}`
+                `Receiving data ${payload.toString()}`
               );
               const payloadObj = JSON.parse(payload);
               const { type, tenant } = payloadObj;
@@ -303,7 +300,7 @@ class CronManager {
                 case 'CREATE':
                   if (!tenant) {
                     this.logger.warn(
-                      `registerCallbackForTenantEvents: CREATE - missing tenant. Received data: ${data.value.toString()}`
+                      `CREATE - missing tenant. Received data: ${data.value.toString()}`
                     );
                   } else {
                     await this._setTenant(tenant);
@@ -313,25 +310,25 @@ class CronManager {
                   if (this._unsetTenant) {
                     if (!tenant) {
                       this.logger.warn(
-                        `registerCallbackForTenantEvents: DELETE - missing tenant. Received data: ${data.value.toString()}`
+                        `DELETE - missing tenant. Received data: ${data.value.toString()}`
                       );
                     } else {
                       await this._unsetTenant(tenant);
                     }
                   } else {
                     this.logger.debug(
-                      `registerCallbackForTenantEvents: callbackDelete not enable. Received data: ${data.value.toString()}`
+                      `CallbackDelete not enable. Received data: ${data.value.toString()}`
                     );
                   }
                   break;
                 default:
                   this.logger.debug(
-                    `registerCallbackForTenantEvents: event was discarded. Received data: ${data.value.toString()}`
+                    `Event was discarded. Received data: ${data.value.toString()}`
                   );
               }
             } catch (e) {
               this.logger.error(
-                `registerCallbackForTenantEvents (Received data - ${util.inspect(
+                `(Received data - ${util.inspect(
                   data
                 )} - value:  ${data.value ? data.value.toString() : ''}): `,
                 e

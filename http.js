@@ -1,7 +1,7 @@
 "use strict";
 
 const axios = require("axios");
-const { Logger } = require("@dojot/microservice-sdk");
+const { ConfigManager: { getConfig }, Logger } = require("@dojot/microservice-sdk");
 
 const config = require("./config");
 
@@ -22,6 +22,8 @@ class InternalError extends Error {
 class HttpHandler {
   constructor() {
     this.logger = new Logger('http');
+
+    this.config = getConfig('CRON');
   }
 
   init() {}
@@ -34,7 +36,7 @@ class HttpHandler {
         headers: req.headers,
         url: req.url,
         data: JSON.stringify(req.body),
-        timeout: config.cronManager.actions.http.timeout,
+        timeout: this.config.actions['http.timeout'],
       })
         .then((response) => {
           this.logger.debug(

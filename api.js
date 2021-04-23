@@ -3,11 +3,10 @@
 const express = require("express");
 const expressValidator = require("express-validator");
 const { body, oneOf, validationResult } = require("express-validator/check");
-const { Logger } = require("@dojot/microservice-sdk");
+const { ConfigManager: { getConfig, loadSettings }, Logger } = require("@dojot/microservice-sdk");
 const authChecker = require("./auth");
 const timeParser = require("cron-parser");
 const cron = require("./cron");
-const config = require("./config");
 const healthcheck = require("@dojot/healthcheck");
 
 // Http server
@@ -68,6 +67,11 @@ var cronManager = null; // initialized at init()
 
 // Logger configuration
 const logger = new Logger('api');
+
+// ConfigManager
+const userConfigFile = process.env.K2V_APP_USER_CONFIG_FILE || 'production.conf';
+loadSettings('CRON', userConfigFile);
+const config = getConfig('CRON');
 
 //
 // REST API
@@ -138,8 +142,7 @@ app.post(
           //http-url
           body('http.url', errors.invalid.http.url).custom((value) => {
             // allowed base URLs
-            for (let baseURL of config.cronManager.actions.http
-              .allowedBaseURLs) {
+            for (let baseURL of config.actions['http.allowedBaseURLs']) {
               if (value.startsWith(baseURL)) {
                 return true;
               }
@@ -362,8 +365,7 @@ app.put(
           //http-url
           body('http.url', errors.invalid.http.url).custom((value) => {
             // allowed base URLs
-            for (let baseURL of config.cronManager.actions.http
-              .allowedBaseURLs) {
+            for (let baseURL of config.actions['http.allowedBaseURLs']) {
               if (value.startsWith(baseURL)) {
                 return true;
               }

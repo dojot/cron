@@ -5,8 +5,7 @@
   "main": "server.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
-    "check-licenses": "apache2-license-checker",
-    "dev": "nodemon --inspect server.js"
+    "check-licenses": "apache2-license-checker"
   },
   "repository": {
     "type": "git",

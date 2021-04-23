@@ -1,10 +1,10 @@
 "use strict";
 
 const {
+  ConfigManager: { getConfig },
   Kafka: { Producer },
   Logger,
 } = require("@dojot/microservice-sdk");
-const config = require("./config");
 
 // Errors ...
 class InitializationFailed extends Error {
@@ -34,12 +34,14 @@ class InternalError extends Error {
 
 class BrokerHandler {
   constructor() {
-    this.allowedSubjects = config.cronManager.actions.broker.allowedSubjects;
+    this.config = getConfig('CRON');
+    
+    this.allowedSubjects = this.config.actions['broker.allowedSubjects'];
 
     this.producer = new Producer({
-      ...config.sdk.producer,
-      'kafka.producer': config.kafkaMessenger.kafka.producer,
-      'kafka.topic': config.kafkaMessenger.kafka.topic,
+      ...this.config.sdkProducer,
+      'kafka.producer': this.config.producer,
+      'kafka.topic': this.config.topic,
     });
 
     // logger

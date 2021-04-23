@@ -1,5 +1,4 @@
 "use strict";
-const config = require("./config");
 const { Logger } = require("@dojot/microservice-sdk");
 
 function b64decode(data) {

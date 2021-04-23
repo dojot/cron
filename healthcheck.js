@@ -2,12 +2,17 @@
 
 const os = require("os");
 const pjson = require("./package.json");
-const config = require("./config");
+const { ConfigManager: { getConfig, loadSettings } } = require("@dojot/microservice-sdk");
 const HealthChecker = require("@dojot/healthcheck").HealthChecker;
 const DataTrigger = require("@dojot/healthcheck").DataTrigger;
 
 // cron Manager
 var cronManager = null; // initialized at init()
+
+// ConfigManager
+const userConfigFile = process.env.K2V_APP_USER_CONFIG_FILE || 'production.conf';
+loadSettings('CRON', userConfigFile);
+const config = getConfig('CRON');
 
 //health checker
 const healthCheckerConfig = {
@@ -35,7 +40,7 @@ const uptimeCollector = (trigger = DataTrigger) => {
 healthChecker.registerMonitor(
   uptime,
   uptimeCollector,
-  config.healthChecker.timeout.uptime
+  config.healthChecker['timeout.uptime']
 );
 
 // memory:utilization
@@ -62,7 +67,7 @@ const memoryCollector = (trigger = DataTrigger) => {
 healthChecker.registerMonitor(
   memory,
   memoryCollector,
-  config.healthChecker.timeout.memory
+  config.healthChecker['timeout.memory']
 );
 
 // cpu:utilization
@@ -89,7 +94,7 @@ const cpuCollector = (trigger = DataTrigger) => {
 healthChecker.registerMonitor(
   cpu,
   cpuCollector,
-  config.healthChecker.timeout.cpu
+  config.healthChecker['timeout.cpu']
 );
 
 // mongodb:connections
@@ -118,7 +123,7 @@ const mongodbCollector = (trigger = DataTrigger) => {
 healthChecker.registerMonitor(
   mongodb,
   mongodbCollector,
-  config.healthChecker.timeout.mongodb
+  config.healthChecker['timeout.mongodb']
 );
 
 // kafka:connections
@@ -147,7 +152,7 @@ const kafkaCollector = (trigger = DataTrigger) => {
 healthChecker.registerMonitor(
   kafka,
   kafkaCollector,
-  config.healthChecker.timeout.kafka
+  config.healthChecker['timeout.kafka']
 );
 
 module.exports = {
