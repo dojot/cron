@@ -3,8 +3,6 @@
 const axios = require("axios");
 const { ConfigManager: { getConfig }, Logger } = require("@dojot/microservice-sdk");
 
-const config = require("./config");
-
 // Errors ...
 class JobExecutionFailed extends Error {
   constructor(...args) {

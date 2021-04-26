@@ -67,10 +67,44 @@ class BrokerHandler {
       });
   }
 
-  async status() {
-    let brokerStatus = await this.producer.getStatus();
-    return brokerStatus;
+  async finish() {
+    try {
+      await this.producer.finish();
+      this.producer = undefined;
+    } catch (error) {
+      this.logger.debug(
+        "Error while finishing Kafka connection, going on like nothing happened"
+      );
+    }
+    this.serviceStateManager.signalNotReady("broker");
   }
+
+  async healthChecker(signalReady, signalNotReady) {
+    if (this.producer) {
+      try {
+        const status = await this.producer.getStatus();
+        if (status.connected) {
+          signalReady();
+        } else {
+          signalNotReady();
+        }
+      } catch (error) {
+        signalNotReady();
+      }
+    } else {
+      signalNotReady();
+    }
+  }
+
+  async shutdownHandler() {
+    this.logger.warn("Shutting down Kafka connection...");
+    await this.finish();
+  }
+
+//   async status() {
+//     let brokerStatus = await this.producer.getStatus();
+//     return brokerStatus;
+//   }
 
   _formatMessage(tenant, subject, message) {
     // from dojot to device

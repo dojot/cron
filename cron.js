@@ -10,6 +10,7 @@ const uuidv4 = require("uuid/v4");
 const http = require("./http");
 const broker = require("./broker");
 const { DB } = require("./db");
+const Utils = require("./Utils");
 
 // Errors ...
 class JobNotFound extends Error {
@@ -26,7 +27,11 @@ class InternalError extends Error {
 // ... Errors
 
 class CronManager {
-  constructor() {
+  constructor(serviceStateManager) {
+    if (!serviceStateManager) {
+      throw new Error("no ServiceStateManager instance was passed");
+    }
+
     this.crontab = new Map();
 
     this.db = new DB();
@@ -45,7 +50,9 @@ class CronManager {
         "kafka.topic": this.config.topic,
     });
 
-    this.idCallbackTenant = null;
+    this.serviceStateManager = serviceStateManager;
+
+    this.wasInitialized = false;
   }
 
   _makeKey(tenant, jobId) {
@@ -257,8 +264,12 @@ class CronManager {
   }
 
   async init() {
-    this.logger.info('Initializing cron service ...');
-
+    if (this.wasInitialized) {
+      this.logger.debug("Kafka Consumer already online, skipping its initialization");
+      return;
+    } else {
+      this.logger.info('Initializing cron service ...');
+    }
     // init consumer
     return await this.consumer
       .init()
@@ -286,7 +297,7 @@ class CronManager {
           )}`
         );
 
-        this.idCallbackTenant = this.consumer.registerCallback(
+        this.consumer.registerCallback(
           topic,
           async (data) => {
             try {
@@ -336,14 +347,54 @@ class CronManager {
             }
           }
         );
+        this.serviceStateManager.signalReady("kafka");
+        this.wasInitialized = true;
+        this.logger.info("... Kafka Consumer was initialized");
       })
       .catch((error) => {
+        this.serviceStateManager.signalNotReady("cron");
         // something unexpected happended!
         this.logger.error(`Couldn't initialize the cron manager (${error}).`);
+        Utils.killApplication();
         return Promise.reject(
           new InternalError('Internal error while starting cron manager.')
         );
       });
+  }
+
+  async finish() {
+    try {
+      this.wasInitialized = false;
+      await this.consumer.finish();
+      this.consumer = undefined;
+    } catch (error) {
+      this.logger.debug(
+        "Error while finishing Kafka connection, going on like nothing happened"
+      );
+    }
+    this.serviceStateManager.signalNotReady("cron");
+  }
+
+  async healthChecker(signalReady, signalNotReady) {
+    if (this.consumer) {
+      try {
+        const status = await this.consumer.getStatus();
+        if (status.connected) {
+          signalReady();
+        } else {
+          signalNotReady();
+        }
+      } catch (error) {
+        signalNotReady();
+      }
+    } else {
+      signalNotReady();
+    }
+  }
+
+  async shutdownHandler() {
+    this.logger.warn("Shutting down Kafka connection...");
+    await this.finish();
   }
 
   createJob(tenant, jobSpec, jobId = null) {

@@ -7,7 +7,7 @@ const { ConfigManager: { getConfig, loadSettings }, Logger } = require("@dojot/m
 const authChecker = require("./auth");
 const timeParser = require("cron-parser");
 const cron = require("./cron");
-const healthcheck = require("@dojot/healthcheck");
+// const healthcheck = require("@dojot/healthcheck");
 
 // Http server
 const app = express();
@@ -659,7 +659,7 @@ module.exports = {
   init: (mgr, hc) => {
     cronManager = mgr;
     // app.use('/cron/v1/', logger.getHTTPRouter());
-    app.use('/cron/v1/', healthcheck.getHTTPRouter(hc));
+    // app.use('/cron/v1/', healthcheck.getHTTPRouter(hc));
     app.listen(5000, () => {
       logger.info('[api] Cron service listening on port 5000');
     });
