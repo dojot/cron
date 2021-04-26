@@ -18,9 +18,10 @@ class InternalError extends Error {
 // ... Errors
 
 class DB {
-  constructor() {
+  constructor(serviceStateManager) {
     this.client = null;
     this.databases = new Map();
+    this.serviceStateManager = serviceStateManager;
     // logger
     this.logger = new Logger('db');
     // ConfigManager
@@ -36,6 +37,40 @@ class DB {
       .then((client) => {
         this.client = client;
       });
+  }
+
+  async finish() {
+    try {
+      await this.client.close();
+      this.client = null;
+    } catch (error) {
+      this.logger.debug(
+        "Error while finishing MongoDB connection, going on like nothing happened"
+      );
+    }
+    this.serviceStateManager.signalNotReady("db");
+  }
+
+  async healthChecker(signalReady, signalNotReady) {
+    if (this.client) {
+      try {
+        const status = await this.status();
+        if (status.connected) {
+          signalReady();
+        } else {
+          signalNotReady();
+        }
+      } catch (error) {
+        signalNotReady();
+      }
+    } else {
+      signalNotReady();
+    }
+  }
+
+  async shutdownHandler() {
+    this.logger.warn("Shutting down MongoDB connection...");
+    await this.client.close();
   }
 
   status() {
