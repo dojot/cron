@@ -2,8 +2,8 @@
 
 const cron = require("./cron");
 const broker = require("./broker");
+const db = require("./db");
 const api = require("./api");
-// const healthcheck = require("./healthcheck");
 const {   
   ConfigManager: { getConfig, loadSettings, transformObjectKeys },
   Logger,
@@ -41,28 +41,35 @@ process.on('unhandledRejection', (reason) => {
 
 let cronManager = new cron.CronManager(serviceStateManager);
 let brokerManager = new broker.BrokerHandler(serviceStateManager);
+let dbManager = new db.DB(serviceStateManager);
 
 // Registering the services, shutdown handlers and health checkers
-serviceStateManager.registerService('kafka');
-// serviceStateManager.registerService('broker');
+serviceStateManager.registerService('kafka-cron');
+serviceStateManager.registerService('kafka-broker');
+serviceStateManager.registerService('db');
 serviceStateManager.registerShutdownHandler(cronManager.shutdownHandler.bind(cronManager));
 serviceStateManager.registerShutdownHandler(brokerManager.shutdownHandler.bind(brokerManager));
+serviceStateManager.registerShutdownHandler(dbManager.shutdownHandler.bind(dbManager));
 serviceStateManager.addHealthChecker(
-  'kafka',
+  'kafka-cron',
   cronManager.healthChecker.bind(cronManager),
   config.healthChecker['kafka.interval.ms'],
 );
-// serviceStateManager.addHealthChecker(
-//   'kafka',
-//   brokerManager.healthChecker.bind(brokerManager),
-//   config.healthChecker['kafka.interval.ms'],
-// );
+serviceStateManager.addHealthChecker(
+  'kafka-broker',
+  brokerManager.healthChecker.bind(brokerManager),
+  config.healthChecker['kafka.interval.ms'],
+);
+serviceStateManager.addHealthChecker(
+  'db',
+  dbManager.healthChecker.bind(dbManager),
+  config.healthChecker['kafka.interval.ms'],
+);
 
 cronManager
   .init()
   .then(() => {
-    // healthcheck.init(cronManager);
-    api.init(cronManager/*, healthcheck.get()*/);
+    api.init(cronManager);
   })
   .catch((error) => {
     logger.error(

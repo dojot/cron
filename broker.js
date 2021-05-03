@@ -33,16 +33,14 @@ class InternalError extends Error {
 // ... Errors
 
 class BrokerHandler {
-  constructor() {
+  constructor(serviceStateManager) {
     this.config = getConfig('CRON');
     
     this.allowedSubjects = this.config.actions['broker.allowedSubjects'];
 
-    this.producer = new Producer({
-      ...this.config.sdkProducer,
-      'kafka.producer': this.config.producer,
-      'kafka.topic': this.config.topic,
-    });
+    this.producer = null;
+
+    this.serviceStateManager = serviceStateManager;
 
     // logger
     this.logger = new Logger('broker');
@@ -52,6 +50,12 @@ class BrokerHandler {
   }
 
   async init() {
+    this.producer = new Producer({
+        ...this.config.sdkProducer,
+        'kafka.producer': this.config.producer,
+        'kafka.topic': this.config.topic,
+      });
+
     this.logger.info('Initializing Kafka Producer...');
     await this.producer
       .connect()
@@ -76,7 +80,7 @@ class BrokerHandler {
         "Error while finishing Kafka connection, going on like nothing happened"
       );
     }
-    this.serviceStateManager.signalNotReady("broker");
+    this.serviceStateManager.signalNotReady("kafka-broker");
   }
 
   async healthChecker(signalReady, signalNotReady) {
@@ -100,11 +104,6 @@ class BrokerHandler {
     this.logger.warn("Shutting down Kafka connection...");
     await this.finish();
   }
-
-//   async status() {
-//     let brokerStatus = await this.producer.getStatus();
-//     return brokerStatus;
-//   }
 
   _formatMessage(tenant, subject, message) {
     // from dojot to device

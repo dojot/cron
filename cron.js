@@ -44,11 +44,7 @@ class CronManager {
 
     this.config = getConfig('CRON');
 
-    this.consumer = new Consumer({
-        ...this.config.sdkConsumer,
-        "kafka.consumer": this.config.consumer,
-        "kafka.topic": this.config.topic,
-    });
+    this.consumer = null;
 
     this.serviceStateManager = serviceStateManager;
 
@@ -270,7 +266,13 @@ class CronManager {
     } else {
       this.logger.info('Initializing cron service ...');
     }
-    // init consumer
+        // init consumer
+    this.consumer = new Consumer({
+        ...this.config.sdkConsumer,
+        "kafka.consumer": this.config.consumer,
+        "kafka.topic": this.config.topic,
+    });
+
     return await this.consumer
       .init()
       .then(() => {
@@ -347,12 +349,12 @@ class CronManager {
             }
           }
         );
-        this.serviceStateManager.signalReady("kafka");
+        this.serviceStateManager.signalReady("kafka-cron");
         this.wasInitialized = true;
         this.logger.info("... Kafka Consumer was initialized");
       })
       .catch((error) => {
-        this.serviceStateManager.signalNotReady("cron");
+        this.serviceStateManager.signalNotReady("kafka-cron");
         // something unexpected happended!
         this.logger.error(`Couldn't initialize the cron manager (${error}).`);
         Utils.killApplication();
@@ -372,7 +374,7 @@ class CronManager {
         "Error while finishing Kafka connection, going on like nothing happened"
       );
     }
-    this.serviceStateManager.signalNotReady("cron");
+    this.serviceStateManager.signalNotReady("kafka-cron");
   }
 
   async healthChecker(signalReady, signalNotReady) {
