@@ -1,8 +1,7 @@
 "use strict";
 
 const express = require("express");
-const expressValidator = require("express-validator");
-const { body, oneOf, validationResult } = require("express-validator/check");
+const { body, oneOf, validationResult } = require("express-validator");
 const { ConfigManager: { getConfig, loadSettings }, Logger } = require("@dojot/microservice-sdk");
 const authChecker = require("./auth");
 const timeParser = require("cron-parser");
@@ -12,7 +11,6 @@ const cron = require("./cron");
 // Http server
 const app = express();
 app.use(express.json());
-app.use(expressValidator());
 // all APIs should be invoked with valid dojot issued JWT tokens
 app.use(authChecker.authParse);
 app.use(authChecker.authEnforce);
@@ -85,6 +83,7 @@ app.post(
     body('time', errors.invalid.time).custom((value) => {
       try {
         const isValid = timeParser.parseString(value);
+        console.log(isValid)
         if (typeof isValid.error != 'undefined' && isValid.error.length > 0) {
           logger.debug(`Couldn't parse cron time (${isValid.error}).`);
           return false;
