@@ -1,2 +1,12 @@
+# NodeJS
 node_modules
-*/node_modules
+
+# Docker
+.dockerignore
+Dockerfile
+
+# test
+test
+
+# doc
+doc

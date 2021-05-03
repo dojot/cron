@@ -6,7 +6,7 @@ const {
   Logger,
 } = require("@dojot/microservice-sdk");
 const { CronJob } = require("cron");
-const uuidv4 = require("uuid/v4");
+const { v4: uuidv4 } = require('uuid');
 const http = require("./http");
 const broker = require("./broker");
 const { DB } = require("./db");
