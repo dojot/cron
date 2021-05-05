@@ -35,9 +35,15 @@ function authParse(req, res, next) {
 
   const tokenData = JSON.parse(b64decode(token[1]));
 
-  req.user = tokenData.username;
-  req.userid = tokenData.userid;
-  req.service = tokenData.service;
+  // to ensure backward compatibility
+  if(tokenData.service){
+    req.user = tokenData.username;
+    req.userid = tokenData.userid;
+    req.service = tokenData.service;
+  } if (tokenData.iss) {
+    req.service = tokenData.iss.substring(tokenData.iss.lastIndexOf('/') + 1);
+  }
+
   next();
 }
 
