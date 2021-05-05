@@ -40,7 +40,7 @@ function authParse(req, res, next) {
     req.user = tokenData.username;
     req.userid = tokenData.userid;
     req.service = tokenData.service;
-  } if (tokenData.iss) {
+  } else if (tokenData.iss) {
     req.service = tokenData.iss.substring(tokenData.iss.lastIndexOf('/') + 1);
   }
 
