@@ -57,6 +57,10 @@ typings/
 # dotenv environment variables file
 .env
 
+# local history
+.history
+
+
 build
 
 .idea/
