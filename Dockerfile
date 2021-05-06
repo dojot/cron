@@ -1,6 +1,6 @@
 #
 # ---- Base Image ----
-FROM node:12.18-alpine AS base
+FROM node:12.21-alpine AS base
 
 WORKDIR /opt/cron
 
@@ -31,9 +31,10 @@ RUN npm install
 
 COPY ./config ./config
 COPY ./server.js ./server.js
+COPY ./schemas ./schemas
 COPY . .
 
-FROM node:12.18-alpine
+FROM node:12.21-alpine
 
 WORKDIR /opt/cron
 
@@ -41,7 +42,8 @@ RUN apk --no-cache add \
     bash \
     libsasl \
     lz4-libs \
-    tini
+    tini \
+    curl
 
 COPY --from=base /opt/cron /opt/cron
 
@@ -51,3 +53,4 @@ CMD ["node", "server.js"]
 
 HEALTHCHECK --start-period=5s --interval=30s --timeout=5s --retries=3 \
     CMD curl -s "http://localhost:9000/health" | grep -q "SERVER_IS_READY"
+

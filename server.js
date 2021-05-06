@@ -3,10 +3,10 @@
 const cron = require("./cron");
 const broker = require("./broker");
 const db = require("./db");
-const api = require("./api");
 const {   
   ConfigManager: { getConfig, loadSettings, transformObjectKeys },
   Logger,
+  WebUtils,
   ServiceStateManager
 } = require("@dojot/microservice-sdk");
 const camelCase = require('lodash.camelcase');
@@ -66,10 +66,38 @@ serviceStateManager.addHealthChecker(
   config.healthChecker['kafka.interval.ms'],
 );
 
+const { routes } = require('./api')(cronManager, Logger, config);
+
+// create an instance of HTTP server
+const server = WebUtils.createServer({ logger });
+
+const { 
+    tokenParsingInterceptor,
+    beaconInterceptor,
+    jsonBodyParsingInterceptor 
+} = WebUtils.framework.interceptors;
+
+// creates an instance of Express.js already configured
+const framework = WebUtils.framework.createExpress({
+    logger,
+    server,
+    routes,
+    interceptors: [
+        tokenParsingInterceptor(),
+        // beaconInterceptor(),
+        jsonBodyParsingInterceptor({config: 1000})
+    ]
+});
+
 cronManager
   .init()
   .then(() => {
-    api.init(cronManager);
+    // emitted each time there is a request
+    server.on('request', framework);
+    // boots up the server
+    server.listen(5000, () => {
+        logger.info('[api] Cron service listening on port 5000');
+    });
   })
   .catch((error) => {
     logger.error(
