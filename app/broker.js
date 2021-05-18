@@ -1,172 +1,158 @@
-"use strict";
+'use strict'
 
 const {
   ConfigManager: { getConfig },
   Kafka: { Producer },
   Logger,
-} = require("@dojot/microservice-sdk");
+} = require('@dojot/microservice-sdk')
+const { killApplication } = require('./Utils')
 
 // Errors ...
 class InitializationFailed extends Error {
   constructor(...args) {
-    super(...args);
+    super(...args)
   }
 }
 
 class InvalidSubject extends Error {
   constructor(...args) {
-    super(...args);
+    super(...args)
   }
 }
 
 class InvalidTenant extends Error {
   constructor(...args) {
-    super(...args);
+    super(...args)
   }
 }
 
 class InternalError extends Error {
   constructor(...args) {
-    super(...args);
+    super(...args)
   }
 }
 // ... Errors
 
 class BrokerHandler {
   constructor(serviceStateManager) {
-    this.config = getConfig('CRON');
-    
-    this.allowedSubjects = this.config.actions['broker.allowedSubjects'];
+    this.config = getConfig('CRON')
 
-    this.producer = null;
+    this.allowedSubjects = this.config.actions['broker.allowed.subjects']
 
-    this.serviceStateManager = serviceStateManager;
+    this.producer = null
+
+    this.serviceStateManager = serviceStateManager
 
     // logger
-    this.logger = new Logger('broker');
+    this.logger = new Logger('broker')
     this.logger.info(
       `Broker handler can publish to subjects: ${this.allowedSubjects}`
-    );
+    )
   }
 
   async init() {
-    this.producer = new Producer({
+    try {
+      this.producer = new Producer({
         ...this.config.sdkProducer,
         'kafka.producer': this.config.producer,
         'kafka.topic': this.config.topic,
-      });
-
-    this.logger.info('Initializing Kafka Producer...');
-    await this.producer
-      .connect()
-      .then(() => {
-        this.logger.info('... Kafka Producer was initialized');
       })
-      .catch((error) => {
-        this.logger.error(
-          'An error occurred while initializing the Agent Messenger. Bailing out!'
-        );
-        this.logger.error(error.stack || error);
-        process.exit(1);
-      });
-  }
-
-  async finish() {
-    try {
-      await this.producer.finish();
-      this.producer = undefined;
+      this.logger.info('Initializing Kafka Producer...')
+      await this.producer.connect()
+      this.logger.info('... Kafka Producer was initialized')
     } catch (error) {
-      this.logger.debug(
-        "Error while finishing Kafka connection, going on like nothing happened"
-      );
+      this.logger.error(
+        'An error occurred while initializing the Agent Messenger. Bailing out!'
+      )
+      this.logger.error(error.stack || error)
+      killApplication()
     }
-    this.serviceStateManager.signalNotReady("kafka-broker");
   }
 
   async healthChecker(signalReady, signalNotReady) {
     if (this.producer) {
       try {
-        const status = await this.producer.getStatus();
+        const status = await this.producer.getStatus()
         if (status.connected) {
-          signalReady();
+          signalReady()
         } else {
-          signalNotReady();
+          signalNotReady()
         }
       } catch (error) {
-        signalNotReady();
+        signalNotReady()
       }
     } else {
-      signalNotReady();
+      signalNotReady()
     }
   }
 
   async shutdownHandler() {
-    this.logger.warn("Shutting down Kafka connection...");
-    await this.finish();
+    this.logger.warn('Shutting down Kafka connection...')
+    return this.producer.disconnect()
   }
 
   _formatMessage(tenant, subject, message) {
     // from dojot to device
     if (subject === 'dojot.device-manager.device') {
       // overwrite tenant, timestamp
-      message.meta.service = tenant;
-      message.meta.timestamp = Date.now();
+      message.meta.service = tenant
+      message.meta.timestamp = Date.now()
     }
     // from device to dojot
     else if (subject === 'device-data') {
       // overwrite tenant, timestamp
-      message.metadata.tenant = tenant;
-      message.metadata.timestamp = Date.now();
+      message.metadata.tenant = tenant
+      message.metadata.timestamp = Date.now()
     }
-    return message;
+    return message
   }
 
   send(tenant, req) {
     return new Promise((resolve, reject) => {
       try {
-        let message;
+        let message
         // format message
         try {
-          message = this._formatMessage(tenant, req.subject, req.message);
+          message = this._formatMessage(tenant, req.subject, req.message)
         } catch (error) {
           this.logger.warn(
             `Failed formatting message ${JSON.stringify(req.message)} ` +
               `to ${tenant}/${req.subject}`
-          );
-          return;
+          )
+          return
         }
 
         // publish
-        let kafkaTopic = `${tenant}.${req.subject}`;
-        let deviceDataMessage = JSON.stringify(message);
+        let kafkaTopic = `${tenant}.${req.subject}`
+        let deviceDataMessage = JSON.stringify(message)
 
         this.logger.debug(
           `Trying to send message to kafka topic ${kafkaTopic}...`
-        );
+        )
         this.producer.produce(kafkaTopic, deviceDataMessage).then(() => {
           this.logger.debug(
             `Successfully sent message to Kafka in ${kafkaTopic}`
-          );
-        });
+          )
+        })
 
         this.logger.debug(
           `Published message ${JSON.stringify(req.message)} to ${tenant}/${
             req.subject
           }`
-        );
-        resolve();
-        return;
+        )
+        resolve()
+        return
       } catch (error) {
         this.logger.debug(
           `Failed to publish message to ${tenant}/${req.subject} (${error}).`
-        );
+        )
         reject(
           new InternalError(
             `Internal Error while publishing message to ${tenant}/${req.subject}`
           )
-        );
+        )
       }
-    });
+    })
   }
 }
 
@@ -176,4 +162,4 @@ module.exports = {
   InvalidSubject: InvalidSubject,
   InternatlError: InternalError,
   BrokerHandler: BrokerHandler,
-};
+}
