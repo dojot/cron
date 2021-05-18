@@ -1,11 +1,11 @@
-const mockProcess = require('jest-mock-process')
-const { BrokerHandler } = require('./../../app/broker')
+const mockProcess = require('jest-mock-process');
+const { BrokerHandler } = require('./../../app/broker');
 
-const mockExit = mockProcess.mockProcessExit()
+const mockExit = mockProcess.mockProcessExit();
 
-let mockShouldResolve
-let resolveMock
-let rejectMock
+let mockShouldResolve;
+let resolveMock;
+let rejectMock;
 
 // MOCKS
 const mockConfig = {
@@ -43,16 +43,16 @@ const mockConfig = {
       (topic, message, key) =>
         new Promise((resolve, reject) => {
           // eslint-disable-next-line no-param-reassign
-          resolve = jest.fn(resolve)
+          resolve = jest.fn(resolve);
           // eslint-disable-next-line no-param-reassign
-          reject = jest.fn(reject)
-          resolveMock = resolve
-          rejectMock = reject
+          reject = jest.fn(reject);
+          resolveMock = resolve;
+          rejectMock = reject;
 
           if (mockShouldResolve) {
-            resolve()
+            resolve();
           } else {
-            reject(new Error('testError'))
+            reject(new Error('testError'));
           }
         })
     ),
@@ -64,7 +64,7 @@ const mockConfig = {
     signalNotReady: jest.fn(),
     signalReady: jest.fn(),
   },
-}
+};
 
 jest.mock('@dojot/microservice-sdk', () => ({
   Kafka: {
@@ -74,144 +74,144 @@ jest.mock('@dojot/microservice-sdk', () => ({
   ConfigManager: {
     getConfig: jest.fn(() => mockConfig.ConfigManager),
   },
-}))
+}));
 
-jest.mock('../../app/Utils')
+jest.mock('../../app/Utils');
 
 describe('BrokerHandler', () => {
-  let brokerHandler
+  let brokerHandler;
 
   beforeEach(() => {
-    brokerHandler = new BrokerHandler(mockConfig.mockServiceStateManager)
-    jest.clearAllMocks()
-  })
+    brokerHandler = new BrokerHandler(mockConfig.mockServiceStateManager);
+    jest.clearAllMocks();
+  });
 
   afterAll(() => {
-    mockExit.mockRestore()
-    jest.clearAllMocks()
-  })
+    mockExit.mockRestore();
+    jest.clearAllMocks();
+  });
 
   describe('constructor', () => {
     it('should successfully create a new instance', () => {
-      expect(brokerHandler.config).toEqual(mockConfig.ConfigManager)
-      expect(brokerHandler.producer).toBeDefined()
-      expect(brokerHandler.logger).toBeDefined()
-    })
-  })
+      expect(brokerHandler.config).toEqual(mockConfig.ConfigManager);
+      expect(brokerHandler.producer).toBeDefined();
+      expect(brokerHandler.logger).toBeDefined();
+    });
+  });
 
   describe('init', () => {
     it('should correctly initialize', async () => {
-      mockConfig.Producer.connect.mockReturnValue(Promise.resolve())
+      mockConfig.Producer.connect.mockReturnValue(Promise.resolve());
 
-      await brokerHandler.init()
+      await brokerHandler.init();
 
-      expect(mockConfig.Producer.connect).toHaveBeenCalled()
-      expect(brokerHandler.logger).toBeDefined()
-    })
+      expect(mockConfig.Producer.connect).toHaveBeenCalled();
+      expect(brokerHandler.logger).toBeDefined();
+    });
 
     it('should not correctly initialize - Promise rejected', async () => {
-      const reason = 'error'
-      mockConfig.Producer.connect.mockReturnValue(Promise.reject(reason))
+      const reason = 'error';
+      mockConfig.Producer.connect.mockReturnValue(Promise.reject(reason));
 
       try {
-        await brokerHandler.init()
+        await brokerHandler.init();
       } catch (error) {
-        expect(error).toEqual(reason)
+        expect(error).toEqual(reason);
       }
-    })
-  })
+    });
+  });
 
   describe('send', () => {
     const fakeMessage =
-      '"message": { "event": "configure", "data": { "attrs": { "message": "keepalive" }, "id": "c2b1a2" }, "meta": { "service": "admin" } }'
+      '"message": { "event": "configure", "data": { "attrs": { "message": "keepalive" }, "id": "c2b1a2" }, "meta": { "service": "admin" } }';
 
     it('should send message', async () => {
-      mockShouldResolve = true
+      mockShouldResolve = true;
 
-      await brokerHandler.init()
+      await brokerHandler.init();
 
-      brokerHandler.send('test', fakeMessage)
+      brokerHandler.send('test', fakeMessage);
 
-      expect(brokerHandler.producer.produce).toHaveBeenCalled()
-      expect(resolveMock).toHaveBeenCalled()
-    })
+      expect(brokerHandler.producer.produce).toHaveBeenCalled();
+      expect(resolveMock).toHaveBeenCalled();
+    });
 
     it('should not send the message - rejected Promise', async () => {
-      mockShouldResolve = false
+      mockShouldResolve = false;
 
-      await brokerHandler.init()
+      await brokerHandler.init();
 
-      brokerHandler.send('test', fakeMessage)
+      brokerHandler.send('test', fakeMessage);
 
-      expect(brokerHandler.producer.produce).toHaveBeenCalled()
-      expect(rejectMock).toHaveBeenCalled()
-    })
+      expect(brokerHandler.producer.produce).toHaveBeenCalled();
+      expect(rejectMock).toHaveBeenCalled();
+    });
 
     it('should not send the message - malformed message', () => {
       try {
-        brokerHandler.send('test', 'error format')
+        brokerHandler.send('test', 'error format');
       } catch (error) {
-        expect(error).toBeDefined()
+        expect(error).toBeDefined();
       } finally {
-        expect(mockConfig.Producer.produce).not.toHaveBeenCalled()
+        expect(mockConfig.Producer.produce).not.toHaveBeenCalled();
       }
-    })
-  })
+    });
+  });
 
   describe('healthChecker', () => {
-    let signalReady
-    let signalNotReady
+    let signalReady;
+    let signalNotReady;
 
     afterAll(() => {
-      mockExit.mockRestore()
-    })
+      mockExit.mockRestore();
+    });
 
     beforeEach(() => {
-      signalReady = jest.fn()
-      signalNotReady = jest.fn()
-      brokerHandler = new BrokerHandler(mockConfig.mockServiceStateManager)
+      signalReady = jest.fn();
+      signalNotReady = jest.fn();
+      brokerHandler = new BrokerHandler(mockConfig.mockServiceStateManager);
 
-      mockConfig.Producer.connect.mockReturnValue(Promise.resolve())
-      jest.clearAllMocks()
-    })
+      mockConfig.Producer.connect.mockReturnValue(Promise.resolve());
+      jest.clearAllMocks();
+    });
 
     it('should signal as ready - is connected to Kafka', async () => {
       mockConfig.Producer.getStatus.mockReturnValue(
         Promise.resolve({ connected: true })
-      )
+      );
 
-      await brokerHandler.init()
-      await brokerHandler.healthChecker(signalReady, signalNotReady)
+      await brokerHandler.init();
+      await brokerHandler.healthChecker(signalReady, signalNotReady);
 
-      expect(signalReady).toHaveBeenCalled()
-    })
+      expect(signalReady).toHaveBeenCalled();
+    });
 
     it('should signal as not ready - is not connected to Kafka', async () => {
       mockConfig.Producer.getStatus.mockReturnValue(
         Promise.resolve({ connected: false })
-      )
+      );
 
-      await brokerHandler.init()
-      await brokerHandler.healthChecker(signalReady, signalNotReady)
+      await brokerHandler.init();
+      await brokerHandler.healthChecker(signalReady, signalNotReady);
 
-      expect(signalNotReady).toHaveBeenCalled()
-    })
+      expect(signalNotReady).toHaveBeenCalled();
+    });
 
     it('should signal as not ready - Promise was rejected', async () => {
-      mockConfig.Producer.getStatus.mockReturnValue(Promise.reject())
+      mockConfig.Producer.getStatus.mockReturnValue(Promise.reject());
 
-      await brokerHandler.init()
-      await brokerHandler.healthChecker(signalReady, signalNotReady)
+      await brokerHandler.init();
+      await brokerHandler.healthChecker(signalReady, signalNotReady);
 
-      expect(signalNotReady).toHaveBeenCalled()
-    })
-  })
+      expect(signalNotReady).toHaveBeenCalled();
+    });
+  });
 
   describe('shutdownHandler', () => {
     it('should call the disconnect function from the producer', async () => {
-      await brokerHandler.init()
-      brokerHandler.shutdownHandler()
-      expect(brokerHandler.producer.disconnect).toHaveBeenCalled()
-    })
-  })
-})
+      await brokerHandler.init();
+      brokerHandler.shutdownHandler();
+      expect(brokerHandler.producer.disconnect).toHaveBeenCalled();
+    });
+  });
+});

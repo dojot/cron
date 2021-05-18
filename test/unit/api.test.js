@@ -3,17 +3,17 @@ const mockLogger = {
   error: jest.fn(),
   info: jest.fn(),
   warn: jest.fn(),
-}
+};
 
 const mockMockronManager = {
   JobNotFound: jest.fn(),
-}
+};
 
 const mockDefaultConfig = {
   actions: {},
-}
+};
 
-const { Logger } = require('@dojot/microservice-sdk')
+const { Logger } = require('@dojot/microservice-sdk');
 jest.mock('@dojot/microservice-sdk', () => ({
   ConfigManager: {
     getConfig: jest.fn(() => mockDefaultConfig),
@@ -23,13 +23,13 @@ jest.mock('@dojot/microservice-sdk', () => ({
     Consumer: jest.fn(),
   },
   Logger: jest.fn(() => mockLogger),
-}))
+}));
 
-const routes = require('./../../app/api')(mockMockronManager, Logger)
+const routes = require('./../../app/api')(mockMockronManager, Logger);
 
 describe('CreateModule', () => {
   it('should  successfully return an array of routes', () => {
-    expect(routes).toBeTruthy()
-    expect(typeof routes).toBe('object')
-  })
-})
+    expect(routes).toBeTruthy();
+    expect(typeof routes).toBe('object');
+  });
+});

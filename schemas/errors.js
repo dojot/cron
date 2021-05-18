@@ -40,20 +40,20 @@ const errors = {
       snippet: { error: 131, message: 'Invalid code snippet.' },
     },
   },
-}
+};
 
 function getErrors(error) {
   try {
-    const propertyNames = Object.getOwnPropertyNames(error)
-    const property = propertyNames[0]
-    const { value } = Object.getOwnPropertyDescriptor(error, property)
-    const stringErrors = value.split('\n')
-    const arrayErros = stringErrors[0].split('Error: ')
-    const jsonErrors = arrayErros.filter(Boolean).map((x) => JSON.parse(x))
-    return jsonErrors
+    const propertyNames = Object.getOwnPropertyNames(error);
+    const property = propertyNames[0];
+    const { value } = Object.getOwnPropertyDescriptor(error, property);
+    const stringErrors = value.split('\n');
+    const arrayErros = stringErrors[0].split('Error: ');
+    const jsonErrors = arrayErros.filter(Boolean).map((x) => JSON.parse(x));
+    return jsonErrors;
   } catch (err) {
-    return null
+    return null;
   }
 }
 
-module.exports = { errors, getErrors }
+module.exports = { errors, getErrors };

@@ -3,22 +3,22 @@ const mockConsumer = {
   getStatus: jest.fn(),
   init: jest.fn(),
   registerCallback: jest.fn(),
-}
+};
 
 const mockDB = {
   init: jest.fn(),
   createDatabase: jest.fn(),
   db: jest.fn(),
-}
+};
 
 const mockProducer = {
   finish: jest.fn(),
   getStatus: jest.fn(),
   init: jest.fn(),
   connect: jest.fn(),
-}
+};
 
-const mocktenantCallback = jest.fn()
+const mocktenantCallback = jest.fn();
 
 const mockDefaultConfig = {
   consumer: {},
@@ -39,14 +39,14 @@ const mockDefaultConfig = {
   dbOptions: {
     useNewUrlParser: true,
   },
-}
+};
 
 const mockLogger = {
   debug: jest.fn(),
   error: jest.fn(),
   info: jest.fn(),
   warn: jest.fn(),
-}
+};
 
 const mockServiceStateManager = {
   registerService: jest.fn(),
@@ -54,7 +54,7 @@ const mockServiceStateManager = {
   addHealthChecker: jest.fn(),
   signalNotReady: jest.fn(),
   signalReady: jest.fn(),
-}
+};
 
 jest.mock('@dojot/microservice-sdk', () => ({
   ConfigManager: {
@@ -65,62 +65,62 @@ jest.mock('@dojot/microservice-sdk', () => ({
     Producer: jest.fn(() => mockProducer),
   },
   Logger: jest.fn(() => mockLogger),
-}))
+}));
 
 jest.mock('../../app/Utils', () => ({
   killApplication: jest.fn(),
-}))
+}));
 
-const { CronManager } = require('./../../app/cron')
-const { killApplication } = require('../../app/Utils')
+const { CronManager } = require('./../../app/cron');
+const { killApplication } = require('../../app/Utils');
 
 describe('Cron', () => {
-  let cronManager
+  let cronManager;
 
   beforeEach(() => {
-    cronManager = new CronManager(mockServiceStateManager)
-  })
+    cronManager = new CronManager(mockServiceStateManager);
+  });
 
   afterEach(() => {
-    jest.clearAllMocks()
-  })
+    jest.clearAllMocks();
+  });
 
   describe('constructor', () => {
     it('should successfully create an Cron Manager', () => {
-      expect(cronManager.serviceStateManager).toEqual(mockServiceStateManager)
-      expect(cronManager.wasInitialized).toBeFalsy()
-    })
-  })
+      expect(cronManager.serviceStateManager).toEqual(mockServiceStateManager);
+      expect(cronManager.wasInitialized).toBeFalsy();
+    });
+  });
 
   describe('init', () => {
     it('should successfully initialize the Cron Manager', async () => {
-      mockConsumer.init.mockReturnValue(Promise.resolve())
-      mockConsumer.registerCallback('test', () => {})
+      mockConsumer.init.mockReturnValue(Promise.resolve());
+      mockConsumer.registerCallback('test', () => {});
 
-      await cronManager.init()
+      await cronManager.init();
 
-      expect(mockConsumer.registerCallback).toHaveBeenCalled()
+      expect(mockConsumer.registerCallback).toHaveBeenCalled();
       //   expect(mockServiceStateManager.signalReady).toHaveBeenCalled();
-    })
+    });
 
     it('should not initialize the Cron Manager - Consumer is already initialized', async () => {
       // Faster way for faking the initialization
-      cronManager.wasInitialized = true
+      cronManager.wasInitialized = true;
 
-      await cronManager.init()
+      await cronManager.init();
 
-      expect(mockConsumer.init).not.toHaveBeenCalled()
-    })
+      expect(mockConsumer.init).not.toHaveBeenCalled();
+    });
 
     it('should fail the initialization of the Cron Manager', async () => {
-      mockConsumer.init.mockReturnValue(Promise.reject(new Error('fakeError')))
+      mockConsumer.init.mockReturnValue(Promise.reject(new Error('fakeError')));
 
-      await cronManager.init()
+      await cronManager.init();
 
-      expect(mockConsumer.registerCallback).not.toHaveBeenCalled()
-      expect(mockServiceStateManager.signalNotReady).toHaveBeenCalled()
-      expect(killApplication).toHaveBeenCalled()
-    })
+      expect(mockConsumer.registerCallback).not.toHaveBeenCalled();
+      expect(mockServiceStateManager.signalNotReady).toHaveBeenCalled();
+      expect(killApplication).toHaveBeenCalled();
+    });
 
     // it('should send a message when the registered callback is called', async () => {
     //   mockConsumer.init.mockReturnValue(Promise.resolve());
@@ -135,108 +135,108 @@ describe('Cron', () => {
     //   callback({});
     //   expect(mocktenantCallback).toHaveBeenCalled();
     // });
-  })
+  });
 
   describe('finish', () => {
-    let cronManager
+    let cronManager;
 
     beforeEach(async (done) => {
-      jest.clearAllMocks()
-      cronManager = new CronManager(mockServiceStateManager)
-      await cronManager.init()
-      done()
-    })
+      jest.clearAllMocks();
+      cronManager = new CronManager(mockServiceStateManager);
+      await cronManager.init();
+      done();
+    });
 
     it('should finish the consumer', async () => {
-      mockConsumer.finish.mockResolvedValueOnce()
+      mockConsumer.finish.mockResolvedValueOnce();
 
-      await cronManager.finish()
+      await cronManager.finish();
 
-      expect(mockConsumer.finish).toHaveBeenCalled()
-      expect(mockServiceStateManager.signalNotReady).toHaveBeenCalled()
+      expect(mockConsumer.finish).toHaveBeenCalled();
+      expect(mockServiceStateManager.signalNotReady).toHaveBeenCalled();
 
-      expect(cronManager.consumer).toBeUndefined()
-      expect(cronManager.wasInitialized).toBeFalsy()
-    })
+      expect(cronManager.consumer).toBeUndefined();
+      expect(cronManager.wasInitialized).toBeFalsy();
+    });
 
     it('should finish the consumer - ignored the error', async () => {
-      mockConsumer.finish.mockRejectedValueOnce()
+      mockConsumer.finish.mockRejectedValueOnce();
 
-      await cronManager.finish()
+      await cronManager.finish();
 
-      expect(mockConsumer.finish).toHaveBeenCalled()
-      expect(mockServiceStateManager.signalNotReady).toHaveBeenCalled()
+      expect(mockConsumer.finish).toHaveBeenCalled();
+      expect(mockServiceStateManager.signalNotReady).toHaveBeenCalled();
 
-      expect(cronManager.wasInitialized).toBeFalsy()
-    })
-  })
+      expect(cronManager.wasInitialized).toBeFalsy();
+    });
+  });
 
   describe('healthChecker', () => {
-    let signalReady
-    let signalNotReady
+    let signalReady;
+    let signalNotReady;
 
     beforeEach(async (done) => {
-      jest.clearAllMocks()
+      jest.clearAllMocks();
 
-      signalReady = jest.fn()
-      signalNotReady = jest.fn()
+      signalReady = jest.fn();
+      signalNotReady = jest.fn();
 
-      await cronManager.init()
-      done()
-    })
+      await cronManager.init();
+      done();
+    });
 
     it('should signal as ready - is connected to Kafka', async () => {
       mockConsumer.getStatus.mockReturnValue(
         Promise.resolve({ connected: true })
-      )
+      );
 
-      await cronManager.healthChecker(signalReady, signalNotReady)
+      await cronManager.healthChecker(signalReady, signalNotReady);
 
-      expect(signalReady).toHaveBeenCalled()
-    })
+      expect(signalReady).toHaveBeenCalled();
+    });
 
     it('should signal as not ready - is not connected to Kafka', async () => {
       mockConsumer.getStatus.mockReturnValue(
         Promise.resolve({ connected: false })
-      )
+      );
 
-      await cronManager.healthChecker(signalReady, signalNotReady)
+      await cronManager.healthChecker(signalReady, signalNotReady);
 
-      expect(signalNotReady).toHaveBeenCalled()
-    })
+      expect(signalNotReady).toHaveBeenCalled();
+    });
 
     it('should signal as not ready - Promise was rejected', async () => {
-      mockConsumer.getStatus.mockReturnValue(Promise.reject())
+      mockConsumer.getStatus.mockReturnValue(Promise.reject());
 
-      await cronManager.healthChecker(signalReady, signalNotReady)
+      await cronManager.healthChecker(signalReady, signalNotReady);
 
-      expect(signalNotReady).toHaveBeenCalled()
-    })
+      expect(signalNotReady).toHaveBeenCalled();
+    });
 
     it('should signal as not ready - consumer is undefined', async () => {
-      cronManager.consumer = undefined
+      cronManager.consumer = undefined;
 
-      await cronManager.healthChecker(signalReady, signalNotReady)
+      await cronManager.healthChecker(signalReady, signalNotReady);
 
-      expect(signalNotReady).toHaveBeenCalled()
-    })
-  })
+      expect(signalNotReady).toHaveBeenCalled();
+    });
+  });
 
   describe('shutdownHandler', () => {
     it('should successfully finish', async () => {
-      const cronManager = new CronManager(mockServiceStateManager)
+      const cronManager = new CronManager(mockServiceStateManager);
 
-      await cronManager.init()
-      await cronManager.shutdownHandler()
+      await cronManager.init();
+      await cronManager.shutdownHandler();
 
-      expect(mockConsumer.finish).toHaveBeenCalled()
-    })
-  })
+      expect(mockConsumer.finish).toHaveBeenCalled();
+    });
+  });
 
   describe('_makeKey', () => {
     it('should successfully return key', async () => {
-      const key = cronManager._makeKey('test', '123')
-      expect(key).toBe('test:123')
-    })
-  })
-})
+      const key = cronManager._makeKey('test', '123');
+      expect(key).toBe('test:123');
+    });
+  });
+});

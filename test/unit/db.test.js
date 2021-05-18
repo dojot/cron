@@ -1,6 +1,6 @@
-const mockProcess = require('jest-mock-process')
+const mockProcess = require('jest-mock-process');
 
-const mockExit = mockProcess.mockProcessExit()
+const mockExit = mockProcess.mockProcessExit();
 
 // MOCKS
 const mock = {
@@ -26,14 +26,14 @@ const mock = {
   Client: {
     close: jest.fn(),
   },
-}
+};
 
-jest.mock('mongodb')
+jest.mock('mongodb');
 const {
   MongoClient: { connect },
-} = require('mongodb')
+} = require('mongodb');
 
-jest.mock('../../app/Utils')
+jest.mock('../../app/Utils');
 
 jest.mock('@dojot/microservice-sdk', () => ({
   Logger: jest.fn(() => mock.Logger),
@@ -41,77 +41,77 @@ jest.mock('@dojot/microservice-sdk', () => ({
     getConfig: jest.fn(() => mock.ConfigManager),
     transformObjectKeys: jest.fn(),
   },
-}))
+}));
 
-const { DB } = require('./../../app/db')
+const { DB } = require('./../../app/db');
 
 describe('DB', () => {
-  let db
+  let db;
 
   beforeEach(() => {
-    db = new DB(mock.ServiceStateManager)
+    db = new DB(mock.ServiceStateManager);
 
-    jest.clearAllMocks()
-  })
+    jest.clearAllMocks();
+  });
 
   afterAll(() => {
-    mockExit.mockRestore()
-  })
+    mockExit.mockRestore();
+  });
 
   describe('constructor', () => {
     it('should successfully create a new instance', () => {
-      expect(db.config).toEqual(mock.ConfigManager)
-      expect(db.databases).toBeDefined()
-      expect(db.logger).toBeDefined()
-    })
-  })
+      expect(db.config).toEqual(mock.ConfigManager);
+      expect(db.databases).toBeDefined();
+      expect(db.logger).toBeDefined();
+    });
+  });
 
   describe('init', () => {
     it('should correctly initialize', async () => {
-      db.init()
+      db.init();
 
-      expect(connect).toHaveBeenCalled()
-      expect(db.logger).toBeDefined()
-    })
+      expect(connect).toHaveBeenCalled();
+      expect(db.logger).toBeDefined();
+    });
 
     it('should not correctly initialize - Promise rejected', async () => {
-      const reason = 'error'
+      const reason = 'error';
 
       try {
-        db.init()
+        db.init();
       } catch (error) {
-        expect(error).toEqual(reason)
+        expect(error).toEqual(reason);
       }
-    })
-  })
+    });
+  });
 
   describe('healthChecker', () => {
-    let signalReady
-    let signalNotReady
+    let signalReady;
+    let signalNotReady;
 
     afterAll(() => {
-      mockExit.mockRestore()
-    })
+      mockExit.mockRestore();
+    });
 
     beforeEach(() => {
-      signalReady = jest.fn()
-      signalNotReady = jest.fn()
-      db = new DB(mock.ServiceStateManager)
-      jest.clearAllMocks()
-    })
+      signalReady = jest.fn();
+      signalNotReady = jest.fn();
+      db = new DB(mock.ServiceStateManager);
+      jest.clearAllMocks();
+    });
 
     it('should signal as not ready - is not connected to Kafka', async () => {
-      db.init()
-      await db.healthChecker(signalReady, signalNotReady)
+      db.init();
+      await db.healthChecker(signalReady, signalNotReady);
 
-      expect(signalNotReady).toHaveBeenCalled()
-    })
+      expect(signalNotReady).toHaveBeenCalled();
+    });
 
     it('should signal as not ready - Promise was rejected', async () => {
-      db.init()
-      await db.healthChecker(signalReady, signalNotReady)
+      db.init();
+      await db.healthChecker(signalReady, signalNotReady);
 
-      expect(signalNotReady).toHaveBeenCalled()
-    })
-  })
-})
+      expect(signalNotReady).toHaveBeenCalled();
+    });
+  });
+});

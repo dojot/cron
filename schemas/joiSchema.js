@@ -1,15 +1,15 @@
-const Joi = require('joi')
-const { errors } = require('./errors')
-const timeParser = require('cron-parser')
+const Joi = require('joi');
+const { errors } = require('./errors');
+const timeParser = require('cron-parser');
 const {
   ConfigManager: { getConfig, loadSettings },
-} = require('@dojot/microservice-sdk')
+} = require('@dojot/microservice-sdk');
 
 // ConfigManager
 const userConfigFile =
-  process.env.CRON_APP_USER_CONFIG_FILE || 'production.conf'
-loadSettings('CRON', userConfigFile)
-const config = getConfig('CRON')
+  process.env.CRON_APP_USER_CONFIG_FILE || 'production.conf';
+loadSettings('CRON', userConfigFile);
+const config = getConfig('CRON');
 
 const joiSchema = Joi.object({
   // name validation
@@ -21,15 +21,15 @@ const joiSchema = Joi.object({
   // cron time validation
   time: Joi.string()
     .custom((value, helper) => {
-      const isValid = timeParser.parseString(value)
+      const isValid = timeParser.parseString(value);
 
       if (
         typeof isValid.errors != 'undefined' &&
         Object(isValid.errors).length > 0
       ) {
-        return helper.message('any.invalid')
+        return helper.message('any.invalid');
       } else {
-        return true
+        return true;
       }
     })
     .error(new Error(JSON.stringify(errors.invalid.time))),
@@ -49,24 +49,24 @@ const joiSchema = Joi.object({
         // allowed base URLs
         for (let baseURL of config.actions['allowedBaseURLs']) {
           if (value.startsWith(baseURL)) {
-            return true
+            return true;
           }
         }
-        return helper.message('any.invalid')
+        return helper.message('any.invalid');
       })
       .error(new Error(JSON.stringify(errors.invalid.http.url))),
     //http-headers
     headers: Joi.any()
       .optional()
       .custom((value, helper) => {
-        if (!value) return true
+        if (!value) return true;
         // json
-        let headers = JSON.stringify(value)
+        let headers = JSON.stringify(value);
         // max:2048
         if (headers.length <= 2048) {
-          return true
+          return true;
         } else {
-          return helper.message('any.invalid')
+          return helper.message('any.invalid');
         }
       })
       .error(new Error(JSON.stringify(errors.invalid.http.headers))),
@@ -92,14 +92,14 @@ const joiSchema = Joi.object({
     body: Joi.any()
       .optional()
       .custom((value, helper) => {
-        if (!value) return helper.message('any.invalid')
+        if (!value) return helper.message('any.invalid');
         // json
-        const body = JSON.stringify(value)
+        const body = JSON.stringify(value);
         // max: 8192
         if (body.length <= 8192) {
-          return true
+          return true;
         } else {
-          return helper.message('any.invalid')
+          return helper.message('any.invalid');
         }
       })
       .error(new Error(JSON.stringify(errors.invalid.http.body))),
@@ -113,18 +113,18 @@ const joiSchema = Joi.object({
     message: Joi.any()
       .optional()
       .custom((value, helper) => {
-        if (!value) return helper.message('any.invalid')
+        if (!value) return helper.message('any.invalid');
         // json
-        const message = JSON.stringify(value)
+        const message = JSON.stringify(value);
         // max:8192
         if (message.length <= 8192) {
-          return true
+          return true;
         } else {
-          return helper.message('any.invalid')
+          return helper.message('any.invalid');
         }
       })
       .error(new Error(JSON.stringify(errors.invalid.broker.message))),
   }).error((errors) => new Error(errors.join(''))),
-}).error((errors) => new Error(errors.join('')))
+}).error((errors) => new Error(errors.join('')));
 
-module.exports = joiSchema
+module.exports = joiSchema;
