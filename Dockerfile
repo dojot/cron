@@ -1,6 +1,6 @@
 #
 # ---- Base Image ----
-FROM node:12.21-alpine AS base
+FROM node:12.22-alpine AS base
 
 WORKDIR /opt/cron
 
@@ -27,14 +27,14 @@ COPY package-lock.json .
 
 #
 # ---- Install dependencies
-RUN npm install
+RUN npm install --only=prod
 
+COPY ./app ./app
 COPY ./config ./config
-COPY ./server.js ./server.js
 COPY ./schemas ./schemas
-COPY . .
+COPY ./server.js ./server.js
 
-FROM node:12.21-alpine
+FROM node:12.22-alpine
 
 WORKDIR /opt/cron
 
@@ -49,7 +49,7 @@ COPY --from=base /opt/cron /opt/cron
 
 ENTRYPOINT ["/sbin/tini", "--"]
 
-CMD ["node", "server.js"]
+CMD ["npm", "start"]
 
 HEALTHCHECK --start-period=5s --interval=30s --timeout=5s --retries=3 \
     CMD curl -s "http://localhost:9000/health" | grep -q "SERVER_IS_READY"

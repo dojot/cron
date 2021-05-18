@@ -1,16 +1,16 @@
-"use strict";
-
+/* eslint-disable no-useless-constructor */
 const {
   ConfigManager: { getConfig },
   Kafka: { Consumer },
   Logger,
-} = require("@dojot/microservice-sdk");
-const { CronJob } = require("cron");
+} = require('@dojot/microservice-sdk');
+const util = require('util');
+const { CronJob } = require('cron');
 const { v4: uuidv4 } = require('uuid');
-const http = require("./http");
-const broker = require("./broker");
-const { DB } = require("./db");
-const Utils = require("./Utils");
+const { HttpHandler } = require('./http');
+const { BrokerHandler } = require('./broker');
+const { DB } = require('./db');
+const { killApplication } = require('./Utils');
 
 // Errors ...
 class JobNotFound extends Error {
@@ -29,16 +29,16 @@ class InternalError extends Error {
 class CronManager {
   constructor(serviceStateManager) {
     if (!serviceStateManager) {
-      throw new Error("no ServiceStateManager instance was passed");
+      throw new Error('no ServiceStateManager instance was passed');
     }
 
     this.crontab = new Map();
 
     this.db = new DB();
 
-    this.httpHandler = new http.HttpHandler();
+    this.httpHandler = new HttpHandler();
 
-    this.brokerHandler = new broker.BrokerHandler();
+    this.brokerHandler = new BrokerHandler();
 
     this.logger = new Logger('cron');
 
@@ -46,12 +46,14 @@ class CronManager {
 
     this.consumer = null;
 
-    this.serviceStateManager = serviceStateManager;
+    this.serviceState = serviceStateManager;
 
     this.wasInitialized = false;
+
+    this.serviceName = 'kafka-consumer';
   }
 
-  _makeKey(tenant, jobId) {
+  static _makeKey(tenant, jobId) {
     return `${tenant}:${jobId}`;
   }
 
@@ -64,8 +66,8 @@ class CronManager {
       this.db
         .readAll(tenant)
         .then((jobs) => {
-          let cronJobSetPromises = [];
-          for (let job of jobs) {
+          const cronJobSetPromises = [];
+          for (const job of jobs) {
             cronJobSetPromises.push(
               this._setCronJob(tenant, job.jobId, job.spec)
             );
@@ -108,8 +110,8 @@ class CronManager {
       this.db
         .readAll(tenant)
         .then((jobs) => {
-          let cronJobUnsetPromises = [];
-          for (let job of jobs) {
+          const cronJobUnsetPromises = [];
+          for (const job of jobs) {
             cronJobUnsetPromises.push(this._unsetCronJob(tenant, job.jobId));
           }
 
@@ -133,7 +135,7 @@ class CronManager {
                   );
                   reject(
                     new InternalError(
-                      `Internal error while droping database for tenant ${tenat}`
+                      `Internal error while droping database for tenant ${tenant}`
                     )
                   );
                 });
@@ -166,7 +168,7 @@ class CronManager {
     return new Promise((resolve, reject) => {
       try {
         // cron job
-        let job = new CronJob(jobSpec.time, () => {
+        const job = new CronJob(jobSpec.time, () => {
           this.logger.debug(`Executing cron job ${jobId} ...`);
 
           // http action
@@ -205,8 +207,8 @@ class CronManager {
         });
 
         // cache
-        let key = this._makeKey(tenant, jobId);
-        let value = { spec: jobSpec, job: job };
+        const key = this._makeKey(tenant, jobId);
+        const value = { spec: jobSpec, job };
         this.crontab.set(key, value);
 
         // start job
@@ -224,15 +226,15 @@ class CronManager {
             jobSpec
           )} (${error}).`
         );
-        reject(new InternalError(`Internal error while setting up cron job.`));
+        reject(new InternalError('Internal error while setting up cron job.'));
       }
     });
   }
 
   _unSetCronJob(tenant, jobId) {
     return new Promise((resolve, reject) => {
-      let key = this._makeKey(tenant, jobId);
-      let value = this.crontab.get(key);
+      const key = this._makeKey(tenant, jobId);
+      const value = this.crontab.get(key);
       if (value) {
         value.job.stop();
         delete value.job;
@@ -240,7 +242,7 @@ class CronManager {
         this.db
           .delete(tenant, jobId)
           .then(() => {
-            resolve({ jobId: jobId, spec: value.spec });
+            resolve({ jobId, spec: value.spec });
           })
           .catch((error) => {
             this.logger.error(`Failed to unset cron job ${jobId} (${error}).`);
@@ -261,107 +263,94 @@ class CronManager {
 
   async init() {
     if (this.wasInitialized) {
-      this.logger.debug("Kafka Consumer already online, skipping its initialization");
+      this.logger.debug(
+        'Kafka Consumer already online, skipping its initialization'
+      );
       return;
-    } else {
-      this.logger.info('Initializing cron service ...');
     }
-        // init consumer
-    this.consumer = new Consumer({
+    this.logger.info('Initializing cron service ...');
+
+    try {
+      this.consumer = new Consumer({
         ...this.config.sdkConsumer,
-        "kafka.consumer": this.config.consumer,
-        "kafka.topic": this.config.topic,
-    });
-
-    return await this.consumer
-      .init()
-      .then(() => {
-        this.logger.info(
-          'Communication with dojot messenger service (kafka) was established.'
-        );
-        return this.brokerHandler.init();
-        // handler for broker jobs
-      })
-      .then(() => {
-        this.logger.info('Handler for broker jobs was initialized.');
-        //database
-        return this.db.init();
-      })
-      .then(async () => {
-        this.logger.info(
-          'Communication with database (mongoDB) was established.'
-        );
-
-        const topic = new RegExp(
-          `^.+${this.config.dojot['subjects.tenancy'].replace(
-            /\./g,
-            '\\.'
-          )}`
-        );
-
-        this.consumer.registerCallback(
-          topic,
-          async (data) => {
-            try {
-              const { value: payload } = data;
-              this.logger.debug(
-                `Receiving data ${payload.toString()}`
-              );
-              const payloadObj = JSON.parse(payload);
-              const { type, tenant } = payloadObj;
-              switch (type) {
-                case 'CREATE':
-                  if (!tenant) {
-                    this.logger.warn(
-                      `CREATE - missing tenant. Received data: ${data.value.toString()}`
-                    );
-                  } else {
-                    await this._setTenant(tenant);
-                  }
-                  break;
-                case 'DELETE':
-                  if (this._unsetTenant) {
-                    if (!tenant) {
-                      this.logger.warn(
-                        `DELETE - missing tenant. Received data: ${data.value.toString()}`
-                      );
-                    } else {
-                      await this._unsetTenant(tenant);
-                    }
-                  } else {
-                    this.logger.debug(
-                      `CallbackDelete not enable. Received data: ${data.value.toString()}`
-                    );
-                  }
-                  break;
-                default:
-                  this.logger.debug(
-                    `Event was discarded. Received data: ${data.value.toString()}`
-                  );
-              }
-            } catch (e) {
-              this.logger.error(
-                `(Received data - ${util.inspect(
-                  data
-                )} - value:  ${data.value ? data.value.toString() : ''}): `,
-                e
-              );
-            }
-          }
-        );
-        this.serviceStateManager.signalReady("kafka-cron");
-        this.wasInitialized = true;
-        this.logger.info("... Kafka Consumer was initialized");
-      })
-      .catch((error) => {
-        this.serviceStateManager.signalNotReady("kafka-cron");
-        // something unexpected happended!
-        this.logger.error(`Couldn't initialize the cron manager (${error}).`);
-        Utils.killApplication();
-        return Promise.reject(
-          new InternalError('Internal error while starting cron manager.')
-        );
+        'kafka.consumer': this.config.consumer,
+        'kafka.topic': this.config.topic,
       });
+      // Establishment of communication with the kafka
+      await this.consumer.init();
+      this.logger.info(
+        'Communication with dojot messenger service (kafka) was established.'
+      );
+      // handler for broker jobs
+      await this.brokerHandler.init(this.serviceState);
+      this.logger.info('Handler for broker jobs was initialized.');
+      // database
+      await this.db.init(this.serviceState);
+      this.logger.info(
+        'Communication with database (mongoDB) was established.'
+      );
+
+      const topic = RegExp(
+        `^.+${this.config.dojot['subjects.tenancy'].replace(/\./g, '\\.')}`
+      );
+
+      const tenantCallback = async (data) => {
+        try {
+          const { value: payload } = data;
+          this.logger.debug(`Receiving data ${payload.toString()}`);
+          const payloadObj = JSON.parse(payload);
+          const { type, tenant } = payloadObj;
+          switch (type) {
+            case 'CREATE':
+              if (!tenant) {
+                this.logger.warn(
+                  `CREATE - missing tenant. Received data: ${data.value.toString()}`
+                );
+              } else {
+                await this._setTenant(tenant);
+              }
+              break;
+            case 'DELETE':
+              if (this._unsetTenant) {
+                if (!tenant) {
+                  this.logger.warn(
+                    `DELETE - missing tenant. Received data: ${data.value.toString()}`
+                  );
+                } else {
+                  await this._unsetTenant(tenant);
+                }
+              } else {
+                this.logger.debug(
+                  `CallbackDelete not enable. Received data: ${data.value.toString()}`
+                );
+              }
+              break;
+            default:
+              this.logger.debug(
+                `Event was discarded. Received data: ${data.value.toString()}`
+              );
+          }
+        } catch (error) {
+          this.logger.error(
+            `(Received data - ${util.inspect(data)} - value:  ${
+              data.value ? data.value.toString() : ''
+            }): `,
+            error
+          );
+        }
+      };
+
+      this.consumer.registerCallback(topic, tenantCallback);
+
+      this.createHealthChecker();
+      this.registerShutdown();
+      this.wasInitialized = true;
+      this.logger.info('... Kafka Consumer was initialized');
+    } catch (error) {
+      // something unexpected happended!
+      this.logger.error(`Couldn't initialize the cron manager (${error}).`);
+      killApplication();
+    }
   }
 
   async finish() {
@@ -371,41 +360,53 @@ class CronManager {
       this.consumer = undefined;
     } catch (error) {
       this.logger.debug(
-        "Error while finishing Kafka connection, going on like nothing happened"
+        'Error while finishing Kafka connection, going on like nothing happened'
       );
     }
-    this.serviceStateManager.signalNotReady("kafka-cron");
+    // this.serviceStateManager.signalNotReady('kafka-consumer');
   }
 
-  async healthChecker(signalReady, signalNotReady) {
-    if (this.consumer) {
-      try {
-        const status = await this.consumer.getStatus();
-        if (status.connected) {
-          signalReady();
-        } else {
+  createHealthChecker() {
+    const healthChecker = async (signalReady, signalNotReady) => {
+      if (this.consumer) {
+        try {
+          const status = await this.consumer.getStatus();
+          if (status.connected) {
+            this.logger.debug('health: healthy');
+            signalReady();
+          } else {
+            signalNotReady();
+          }
+        } catch (error) {
+          this.logger.error('health: unhealthy');
           signalNotReady();
         }
-      } catch (error) {
+      } else {
+        this.logger.error('health: unhealthy');
         signalNotReady();
       }
-    } else {
-      signalNotReady();
-    }
+    };
+    this.serviceState.addHealthChecker(
+      this.serviceName,
+      healthChecker,
+      this.config.healthChecker['kafka.interval.ms']
+    );
   }
 
-  async shutdownHandler() {
-    this.logger.warn("Shutting down Kafka connection...");
-    await this.finish();
+  registerShutdown() {
+    this.serviceState.registerShutdownHandler(async () => {
+      this.logger.warn('Shutting down Kafka connection...');
+      await this.finish();
+    });
   }
 
   createJob(tenant, jobSpec, jobId = null) {
     return new Promise((resolve, reject) => {
       // job id
-      let _jobId = jobId || uuidv4();
+      const _jobId = jobId || uuidv4();
 
       // db -job
-      let dbEntry = {
+      const dbEntry = {
         jobId: _jobId,
         spec: jobSpec,
       };
@@ -432,11 +433,11 @@ class CronManager {
 
   readJob(tenant, jobId) {
     return new Promise((resolve, reject) => {
-      let key = this._makeKey(tenant, jobId);
-      let value = this.crontab.get(key);
+      const key = this._makeKey(tenant, jobId);
+      const value = this.crontab.get(key);
       // found
       if (value) {
-        resolve({ jobId: jobId, spec: value.spec });
+        resolve({ jobId, spec: value.spec });
       }
       // not found
       else {
@@ -447,11 +448,11 @@ class CronManager {
 
   readAllJobs(tenant) {
     return new Promise((resolve) => {
-      let jobs = [];
-      for (let [key, value] of this.crontab) {
-        let [_tenant, jobId] = key.split(':');
+      const jobs = [];
+      for (const [key, value] of this.crontab) {
+        const [_tenant, jobId] = key.split(':');
         if (_tenant === tenant) {
-          jobs.push({ jobId: jobId, spec: value.spec });
+          jobs.push({ jobId, spec: value.spec });
         }
       }
       resolve(jobs);
@@ -464,9 +465,9 @@ class CronManager {
   }
 
   deleteAllJobs(tenant) {
-    let deleteJobPromises = [];
-    for (let [key] of this.crontab) {
-      let [_tenant, jobId] = key.split(':');
+    const deleteJobPromises = [];
+    for (const [key] of this.crontab) {
+      const [_tenant, jobId] = key.split(':');
       if (_tenant === tenant) {
         deleteJobPromises.push(this.deleteJob(tenant, jobId));
       }
@@ -476,7 +477,7 @@ class CronManager {
 }
 
 module.exports = {
-  JobNotFound: JobNotFound,
-  InternalError: InternalError,
-  CronManager: CronManager,
+  JobNotFound,
+  InternalError,
+  CronManager,
 };

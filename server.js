@@ -1,19 +1,15 @@
-"use strict";
-
-const cron = require("./cron");
-const broker = require("./broker");
-const db = require("./db");
-const {   
+const {
   ConfigManager: { getConfig, loadSettings, transformObjectKeys },
   Logger,
   WebUtils,
-  ServiceStateManager
-} = require("@dojot/microservice-sdk");
+  ServiceStateManager,
+} = require('@dojot/microservice-sdk');
 const camelCase = require('lodash.camelcase');
-const Utils = require("./Utils");
+const { killApplication } = require('./app/Utils');
+const { CronManager } = require('./app/cron');
 
-
-const userConfigFile = process.env.K2V_APP_USER_CONFIG_FILE || 'production.conf';
+const userConfigFile =
+  process.env.CRON_APP_USER_CONFIG_FILE || 'production.conf';
 loadSettings('CRON', userConfigFile);
 const config = getConfig('CRON');
 
@@ -36,57 +32,50 @@ process.on('unhandledRejection', (reason) => {
   logger.error(
     `Unhandled Rejection at: ${reason.stack || reason}. Bailing out!!`
   );
-  Utils.killApplication();
+  killApplication();
 });
 
-let cronManager = new cron.CronManager(serviceStateManager);
-let brokerManager = new broker.BrokerHandler(serviceStateManager);
-let dbManager = new db.DB(serviceStateManager);
-
 // Registering the services, shutdown handlers and health checkers
-serviceStateManager.registerService('kafka-cron');
-serviceStateManager.registerService('kafka-broker');
-serviceStateManager.registerService('db');
-serviceStateManager.registerShutdownHandler(cronManager.shutdownHandler.bind(cronManager));
-serviceStateManager.registerShutdownHandler(brokerManager.shutdownHandler.bind(brokerManager));
-serviceStateManager.registerShutdownHandler(dbManager.shutdownHandler.bind(dbManager));
-serviceStateManager.addHealthChecker(
-  'kafka-cron',
-  cronManager.healthChecker.bind(cronManager),
-  config.healthChecker['kafka.interval.ms'],
-);
-serviceStateManager.addHealthChecker(
-  'kafka-broker',
-  brokerManager.healthChecker.bind(brokerManager),
-  config.healthChecker['kafka.interval.ms'],
-);
-serviceStateManager.addHealthChecker(
-  'db',
-  dbManager.healthChecker.bind(dbManager),
-  config.healthChecker['kafka.interval.ms'],
-);
+serviceStateManager.registerService('kafka-consumer');
+serviceStateManager.registerService('kafka-producer');
+serviceStateManager.registerService('db-cron');
+serviceStateManager.registerService('server');
 
-const { routes } = require('./api')(cronManager, Logger, config);
+const cronManager = new CronManager(serviceStateManager);
+
+const routes = require('./app/api')(cronManager, Logger);
 
 // create an instance of HTTP server
 const server = WebUtils.createServer({ logger });
 
-const { 
-    tokenParsingInterceptor,
-    beaconInterceptor,
-    jsonBodyParsingInterceptor 
+const {
+  tokenParsingInterceptor,
+  beaconInterceptor,
+  readinessInterceptor,
+  jsonBodyParsingInterceptor,
+  requestLogInterceptor,
 } = WebUtils.framework.interceptors;
 
 // creates an instance of Express.js already configured
 const framework = WebUtils.framework.createExpress({
-    logger,
-    server,
-    routes,
-    interceptors: [
-        tokenParsingInterceptor(),
-        // beaconInterceptor(),
-        jsonBodyParsingInterceptor({config: 1000})
-    ]
+  logger,
+  server,
+  routes: routes.flat(),
+  interceptors: [
+    tokenParsingInterceptor(),
+    beaconInterceptor({
+      stateManager: serviceStateManager,
+      logger,
+    }),
+    readinessInterceptor({
+      stateManager: serviceStateManager,
+      logger,
+    }),
+    requestLogInterceptor({
+      logger,
+    }),
+    jsonBodyParsingInterceptor({ config: 1000 }),
+  ],
 });
 
 cronManager
@@ -96,12 +85,14 @@ cronManager
     server.on('request', framework);
     // boots up the server
     server.listen(5000, () => {
-        logger.info('[api] Cron service listening on port 5000');
+      logger.info('[api] Cron service listening on port 5000');
     });
+    serviceStateManager.signalReady('server');
   })
   .catch((error) => {
     logger.error(
       `Cron service initialization failed (${error}). Bailing out!!`
     );
-    Utils.killApplication();
+    serviceStateManager.signalNotReady('server');
+    killApplication();
   });

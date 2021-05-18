@@ -1,10 +1,10 @@
-"use strict";
-
+/* eslint-disable no-useless-constructor */
 const {
   ConfigManager: { getConfig },
   Kafka: { Producer },
   Logger,
-} = require("@dojot/microservice-sdk");
+} = require('@dojot/microservice-sdk');
+const { killApplication } = require('./Utils');
 
 // Errors ...
 class InitializationFailed extends Error {
@@ -33,92 +33,86 @@ class InternalError extends Error {
 // ... Errors
 
 class BrokerHandler {
-  constructor(serviceStateManager) {
+  constructor() {
     this.config = getConfig('CRON');
-    
-    this.allowedSubjects = this.config.actions['broker.allowedSubjects'];
-
+    this.allowedSubjects = this.config.actions['broker.allowed.subjects'];
     this.producer = null;
-
-    this.serviceStateManager = serviceStateManager;
-
-    // logger
+    this.serviceState = null;
     this.logger = new Logger('broker');
+    this.serviceName = 'kafka-producer';
     this.logger.info(
       `Broker handler can publish to subjects: ${this.allowedSubjects}`
     );
   }
 
-  async init() {
-    this.producer = new Producer({
+  async init(serviceStateManager) {
+    try {
+      this.producer = new Producer({
         ...this.config.sdkProducer,
         'kafka.producer': this.config.producer,
         'kafka.topic': this.config.topic,
       });
-
-    this.logger.info('Initializing Kafka Producer...');
-    await this.producer
-      .connect()
-      .then(() => {
-        this.logger.info('... Kafka Producer was initialized');
-      })
-      .catch((error) => {
-        this.logger.error(
-          'An error occurred while initializing the Agent Messenger. Bailing out!'
-        );
-        this.logger.error(error.stack || error);
-        process.exit(1);
-      });
-  }
-
-  async finish() {
-    try {
-      await this.producer.finish();
-      this.producer = undefined;
+      this.logger.info('Initializing Kafka Producer...');
+      await this.producer.connect();
+      this.serviceState = serviceStateManager;
+      this.createHealthChecker();
+      this.registerShutdown();
+      this.logger.info('... Kafka Producer was initialized');
     } catch (error) {
-      this.logger.debug(
-        "Error while finishing Kafka connection, going on like nothing happened"
+      this.logger.error(
+        'An error occurred while initializing the Agent Messenger. Bailing out!'
       );
+      this.logger.error(error.stack || error);
+      killApplication();
     }
-    this.serviceStateManager.signalNotReady("kafka-broker");
   }
 
-  async healthChecker(signalReady, signalNotReady) {
-    if (this.producer) {
-      try {
-        const status = await this.producer.getStatus();
-        if (status.connected) {
-          signalReady();
-        } else {
+  createHealthChecker() {
+    const healthChecker = async (signalReady, signalNotReady) => {
+      if (this.producer) {
+        try {
+          const status = await this.producer.getStatus();
+          if (status.connected) {
+            signalReady();
+          } else {
+            signalNotReady();
+          }
+        } catch (error) {
           signalNotReady();
         }
-      } catch (error) {
+      } else {
         signalNotReady();
       }
-    } else {
-      signalNotReady();
-    }
+    };
+    this.serviceState.addHealthChecker(
+      this.serviceName,
+      healthChecker,
+      this.config.healthChecker['kafka.interval.ms']
+    );
   }
 
-  async shutdownHandler() {
-    this.logger.warn("Shutting down Kafka connection...");
-    await this.finish();
+  registerShutdown() {
+    this.serviceState.registerShutdownHandler(async () => {
+      this.logger.warn('Shutting down Kafka connection...');
+      return this.producer.disconnect();
+    });
   }
 
-  _formatMessage(tenant, subject, message) {
+  static formatMessage(tenant, subject, message) {
+    const formatedMessage = message;
     // from dojot to device
     if (subject === 'dojot.device-manager.device') {
       // overwrite tenant, timestamp
-      message.meta.service = tenant;
-      message.meta.timestamp = Date.now();
+      formatedMessage.meta.service = tenant;
+      formatedMessage.meta.timestamp = Date.now();
     }
     // from device to dojot
     else if (subject === 'device-data') {
       // overwrite tenant, timestamp
-      message.metadata.tenant = tenant;
-      message.metadata.timestamp = Date.now();
+      formatedMessage.metadata.tenant = tenant;
+      formatedMessage.metadata.timestamp = Date.now();
     }
-    return message;
+    return formatedMessage;
   }
 
   send(tenant, req) {
@@ -127,7 +121,7 @@ class BrokerHandler {
         let message;
         // format message
         try {
-          message = this._formatMessage(tenant, req.subject, req.message);
+          message = this.formatMessage(tenant, req.subject, req.message);
         } catch (error) {
           this.logger.warn(
             `Failed formatting message ${JSON.stringify(req.message)} ` +
@@ -137,8 +131,8 @@ class BrokerHandler {
         }
 
         // publish
-        let kafkaTopic = `${tenant}.${req.subject}`;
-        let deviceDataMessage = JSON.stringify(message);
+        const kafkaTopic = `${tenant}.${req.subject}`;
+        const deviceDataMessage = JSON.stringify(message);
 
         this.logger.debug(
           `Trying to send message to kafka topic ${kafkaTopic}...`
@@ -171,9 +165,9 @@ class BrokerHandler {
 }
 
 module.exports = {
-  InitializationFailed: InitializationFailed,
-  InvalidTenant: InvalidTenant,
-  InvalidSubject: InvalidSubject,
+  InitializationFailed,
+  InvalidTenant,
+  InvalidSubject,
   InternatlError: InternalError,
-  BrokerHandler: BrokerHandler,
+  BrokerHandler,
 };
