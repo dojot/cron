@@ -5,13 +5,8 @@ node_modules
 .dockerignore
 Dockerfile
 
-# Test
+# test
 test
-coverage
 
-# Documentation
-README.md
-
-# IDEs
-.vscode
-.github
+# doc
+doc
