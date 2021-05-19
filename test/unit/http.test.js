@@ -1,4 +1,4 @@
-const { HttpHandler } = require('./../../app/http');
+const { HttpHandler } = require('../../app/http');
 const axios = require('axios');
 const MockAdapter = require('axios-mock-adapter');
 

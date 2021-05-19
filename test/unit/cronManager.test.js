@@ -67,8 +67,9 @@ jest.mock('../../app/Utils', () => ({
   killApplication: jest.fn(),
 }));
 
-const { CronManager } = require('../../app/cron');
 const { killApplication } = require('../../app/Utils');
+
+const { CronManager } = require('../../app/cron');
 
 describe('Cron', () => {
   let cronManager;

@@ -8,7 +8,7 @@
     "test": "jest",
     "test:watch": "jest --watchAll",
     "check-licenses": "apache2-license-checker",
-    "lint": "eslint app/** tests/** server.js --ext .js",
+    "lint": "eslint app/** test/** server.js --ext .js",
     "lint: fix": "eslint --fix --ext .js."
   },
   "repository": {
