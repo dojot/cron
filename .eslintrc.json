@@ -7,7 +7,8 @@
     "extends": [
         "airbnb-base",
         "plugin:security/recommended",
-        "plugin:jest/recommended"
+        "plugin:jest/recommended",
+        "plugin:prettier/recommended"
     ],
     "globals": {
         "Atomics": "readonly",
@@ -18,12 +19,15 @@
         "parser": "babel-eslint"
     },
     "rules": {
-        "prettier/prettier": "error",
         "jest/no-disabled-tests": "warn",
         "jest/no-focused-tests": "error",
         "jest/no-identical-title": "error",
         "jest/prefer-to-have-length": "warn",
         "jest/valid-expect": "error",
+        "no-restricted-syntax": [
+          "error",
+          "BinaryExpression[operator='in']"
+        ],
         /* the rule import/no-unresolved is needed to avoid problems with the codefactor */
         "import/no-unresolved": "off",
         /* Workaround:
@@ -39,10 +43,14 @@
                 "maxBOF": 1,
                 "maxEOF": 0
             }
-        ]
+        ],
+        "prettier/prettier": "error",
+        "arrow-body-style": "off",
+        "prefer-arrow-callback": "off"
     },
     "plugins": [
         "security",
-        "jest"
+        "jest",
+        "prettier"
     ]
 }

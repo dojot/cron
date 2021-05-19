@@ -1,5 +1,7 @@
-'use strict';
-
+/* eslint-disable no-param-reassign */
+/* eslint-disable class-methods-use-this */
+/* eslint-disable no-useless-constructor */
+/* eslint-disable max-classes-per-file */
 const {
   ConfigManager: { getConfig },
   Kafka: { Producer },
@@ -34,23 +36,19 @@ class InternalError extends Error {
 // ... Errors
 
 class BrokerHandler {
-  constructor(serviceStateManager) {
+  constructor() {
     this.config = getConfig('CRON');
-
     this.allowedSubjects = this.config.actions['broker.allowed.subjects'];
-
     this.producer = null;
-
-    this.serviceStateManager = serviceStateManager;
-
-    // logger
+    this.serviceState = null;
     this.logger = new Logger('broker');
+    this.serviceName = 'kafka-producer';
     this.logger.info(
       `Broker handler can publish to subjects: ${this.allowedSubjects}`
     );
   }
 
-  async init() {
+  async init(serviceStateManager) {
     try {
       this.producer = new Producer({
         ...this.config.sdkProducer,
@@ -59,6 +57,9 @@ class BrokerHandler {
       });
       this.logger.info('Initializing Kafka Producer...');
       await this.producer.connect();
+      this.serviceState = serviceStateManager;
+      this.createHealthChecker();
+      this.registerShutdown();
       this.logger.info('... Kafka Producer was initialized');
     } catch (error) {
       this.logger.error(
@@ -69,29 +70,38 @@ class BrokerHandler {
     }
   }
 
-  async healthChecker(signalReady, signalNotReady) {
-    if (this.producer) {
-      try {
-        const status = await this.producer.getStatus();
-        if (status.connected) {
-          signalReady();
-        } else {
+  createHealthChecker() {
+    const healthChecker = async (signalReady, signalNotReady) => {
+      if (this.producer) {
+        try {
+          const status = await this.producer.getStatus();
+          if (status.connected) {
+            signalReady();
+          } else {
+            signalNotReady();
+          }
+        } catch (error) {
           signalNotReady();
         }
-      } catch (error) {
+      } else {
         signalNotReady();
       }
-    } else {
-      signalNotReady();
-    }
+    };
+    this.serviceState.addHealthChecker(
+      this.serviceName,
+      healthChecker,
+      this.config.healthChecker['kafka.interval.ms']
+    );
   }
 
-  async shutdownHandler() {
-    this.logger.warn('Shutting down Kafka connection...');
-    return this.producer.disconnect();
+  registerShutdown() {
+    this.serviceState.registerShutdownHandler(async () => {
+      this.logger.warn('Shutting down Kafka connection...');
+      return this.producer.disconnect();
+    });
   }
 
-  _formatMessage(tenant, subject, message) {
+  formatMessage(tenant, subject, message) {
     // from dojot to device
     if (subject === 'dojot.device-manager.device') {
       // overwrite tenant, timestamp
@@ -113,7 +123,7 @@ class BrokerHandler {
         let message;
         // format message
         try {
-          message = this._formatMessage(tenant, req.subject, req.message);
+          message = this.formatMessage(tenant, req.subject, req.message);
         } catch (error) {
           this.logger.warn(
             `Failed formatting message ${JSON.stringify(req.message)} ` +
@@ -123,8 +133,8 @@ class BrokerHandler {
         }
 
         // publish
-        let kafkaTopic = `${tenant}.${req.subject}`;
-        let deviceDataMessage = JSON.stringify(message);
+        const kafkaTopic = `${tenant}.${req.subject}`;
+        const deviceDataMessage = JSON.stringify(message);
 
         this.logger.debug(
           `Trying to send message to kafka topic ${kafkaTopic}...`
@@ -157,9 +167,9 @@ class BrokerHandler {
 }
 
 module.exports = {
-  InitializationFailed: InitializationFailed,
-  InvalidTenant: InvalidTenant,
-  InvalidSubject: InvalidSubject,
+  InitializationFailed,
+  InvalidTenant,
+  InvalidSubject,
   InternatlError: InternalError,
-  BrokerHandler: BrokerHandler,
+  BrokerHandler,
 };

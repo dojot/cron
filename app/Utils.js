@@ -7,13 +7,13 @@
  * Object Rename Key.
  * @function objectRenameKey
  */
-const objectRenameKey = (obj, old_key, new_key) => {
+const objectRenameKey = (obj, oldKey, newKey) => {
   Object.defineProperty(
     obj,
-    new_key,
-    Object.getOwnPropertyDescriptor(obj, old_key)
+    newKey,
+    Object.getOwnPropertyDescriptor(obj, oldKey)
   );
-  delete obj[old_key];
+  delete obj[oldKey];
   return obj;
 };
 

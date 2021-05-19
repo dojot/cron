@@ -1,5 +1,5 @@
-'use strict';
-
+/* eslint-disable no-useless-constructor */
+/* eslint-disable max-classes-per-file */
 const {
   MongoClient: { connect },
 } = require('mongodb');
@@ -7,8 +7,8 @@ const {
   ConfigManager: { getConfig, transformObjectKeys },
   Logger,
 } = require('@dojot/microservice-sdk');
-const { objectRenameKey } = require('./Utils');
 const camelCase = require('lodash.camelcase');
+const { objectRenameKey, killApplication } = require('./Utils');
 
 // Errors ...
 class DatabaseNotFound extends Error {
@@ -25,76 +25,78 @@ class InternalError extends Error {
 // ... Errors
 
 class DB {
-  constructor(serviceStateManager) {
+  constructor() {
     this.client = null;
     this.databases = new Map();
-    this.serviceStateManager = serviceStateManager;
     this.logger = new Logger('db');
     this.config = getConfig('CRON');
+    this.serviceName = 'db-cron';
   }
 
-  init() {
-    const optionsCamelCase = transformObjectKeys(
-      this.config.options,
-      camelCase
-    );
-    const options = objectRenameKey(
-      optionsCamelCase,
-      'connectTimeoutMs',
-      'connectTimeoutMS'
-    );
-
-    connect(this.config.db['mongodb.url'], options, (err, client) => {
-      if (err) this.logger.debug('Failed to connect', err);
-      this.client = client;
-    });
-  }
-
-  async finish() {
+  async init(serviceStateManager) {
     try {
-      await this.client.close();
-      this.client = null;
-    } catch (error) {
-      this.logger.debug(
-        'Error while finishing MongoDB connection, going on like nothing happened'
+      const optionsCamelCase = transformObjectKeys(
+        this.config.options,
+        camelCase
       );
+      const options = objectRenameKey(
+        optionsCamelCase,
+        'connectTimeoutMs',
+        'connectTimeoutMS'
+      );
+      this.client = await connect(this.config.db['mongodb.url'], options);
+      this.serviceState = serviceStateManager;
+      this.createHealthChecker();
+      this.registerShutdown();
+    } catch (error) {
+      this.logger.debug('An error occurred while initializing DB', error);
+      killApplication();
     }
-    this.serviceStateManager.signalNotReady('db');
   }
 
-  async healthChecker(signalReady, signalNotReady) {
-    if (this.client) {
-      try {
-        const status = await this.status();
-        if (status.connected) {
-          signalReady();
-        } else {
+  createHealthChecker() {
+    const healthChecker = async (signalReady, signalNotReady) => {
+      if (this.client) {
+        try {
+          const status = await this.status();
+          if (status.connected) {
+            signalReady();
+          } else {
+            signalNotReady();
+          }
+        } catch (error) {
           signalNotReady();
         }
-      } catch (error) {
+      } else {
         signalNotReady();
       }
-    } else {
-      signalNotReady();
-    }
+    };
+    this.serviceState.addHealthChecker(
+      this.serviceName,
+      healthChecker,
+      this.config.healthChecker['kafka.interval.ms']
+    );
   }
 
-  async shutdownHandler() {
-    this.logger.warn('Shutting down MongoDB connection...');
-    await this.client.close();
+  registerShutdown() {
+    this.serviceState.registerShutdownHandler(async () => {
+      this.logger.warn('Shutting down MongoDB connection...');
+      await this.client.close();
+      this.client = null;
+    });
   }
 
   status() {
     return new Promise((resolve, reject) => {
-      let dbStatus = {
+      const dbStatus = {
         connected: false,
       };
-      let isConnected = this.client.isConnected();
+      const isConnected = this.client.isConnected();
       if (isConnected) {
         dbStatus.connected = true;
 
-        let dbStatsPromises = [];
-        for (let entry of this.databases.values()) {
+        const dbStatsPromises = [];
+        for (const entry of this.databases.values()) {
           dbStatsPromises.push(entry.db.stats());
         }
         Promise.all(dbStatsPromises)
@@ -104,6 +106,7 @@ class DB {
           })
           .catch((error) => {
             this.logger.debug(`Failed to get database status (${error})`);
+            dbStatus.connected = false;
             reject(
               new InternalError(`Internal error while getting database status.`)
             );
@@ -115,26 +118,26 @@ class DB {
   }
 
   createDatabase(tenant) {
-    let key = tenant;
-    let db = this.client.db('cron_' + tenant);
-    let collection = db.collection('jobs');
+    const key = tenant;
+    const db = this.client.db(`cron_${tenant}`);
+    const collection = db.collection('jobs');
     this.logger.info(
-      `Created collection jobs into database ${'cron_' + tenant}.`
+      `Created collection jobs into database ${`cron_${tenant}`}.`
     );
-    let entry = {
-      db: db,
-      collection: collection,
+    const entry = {
+      db,
+      collection,
     };
     this.databases.set(key, entry);
     this.logger.debug(`Cached database clients for tenant ${tenant}.`);
   }
 
   deleteDatabase(tenant) {
-    let key = tenant;
-    let entry = this.databases.get(key);
+    const key = tenant;
+    const entry = this.databases.get(key);
     if (entry) {
       entry.db.dropDatabase();
-      this.logger.info(`Droped database ${'cron_' + tenant}.`);
+      this.logger.info(`Droped database ${`cron_${tenant}`}.`);
       this.databases.delete(key);
     } else {
       this.logger.debug(
@@ -156,7 +159,7 @@ class DB {
 
   read(tenant, jobId) {
     // promise
-    return this.databases.get(tenant).collection.findOne({ jobId: jobId });
+    return this.databases.get(tenant).collection.findOne({ jobId });
   }
 
   update(tenant, job) {
@@ -168,12 +171,12 @@ class DB {
 
   delete(tenant, jobId) {
     // promise
-    return this.databases.get(tenant).collection.deleteOne({ jobId: jobId });
+    return this.databases.get(tenant).collection.deleteOne({ jobId });
   }
 }
 
 module.exports = {
-  DatabaseNotFound: DatabaseNotFound,
+  DatabaseNotFound,
   InternatlError: InternalError,
-  DB: DB,
+  DB,
 };

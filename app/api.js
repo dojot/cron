@@ -1,7 +1,5 @@
-'use strict';
-
-const joiSchema = require('./../schemas/joiSchema');
-const { getErrors } = require('./../schemas/errors');
+const joiSchema = require('../schemas/joiSchema');
+const { getErrors } = require('../schemas/errors');
 const cron = require('./cron');
 
 function createModule(cronManager, Logger) {
@@ -21,12 +19,11 @@ function createModule(cronManager, Logger) {
                 abortEarly: false,
               });
               const errors = getErrors(error);
-              if (errors)
-                return res
-                  .status(400)
-                  .json({ status: 'error', errors: errors });
+              if (errors) {
+                return res.status(400).json({ status: 'error', errors });
+              }
 
-              let jobSpec = {
+              const jobSpec = {
                 time: req.body.time,
                 timezone: req.body.timezone || 'UTC',
                 name: req.body.name,
@@ -37,12 +34,10 @@ function createModule(cronManager, Logger) {
               };
 
               cronManager
-                .createJob(req.tenant /*tenant*/, jobSpec)
-                .then((jobId) => {
-                  return res
-                    .status(201)
-                    .json({ status: 'success', jobId: jobId });
-                })
+                .createJob(req.tenant /* tenant */, jobSpec)
+                .then((jobId) =>
+                  res.status(201).json({ status: 'success', jobId })
+                )
                 .catch((error) => {
                   logger.debug(
                     `Something unexpected happened (${error})`,
@@ -50,7 +45,7 @@ function createModule(cronManager, Logger) {
                   );
                   return res
                     .status(500)
-                    .json({ status: 'error', errors: [errors.internal] });
+                    .json({ status: 'error', errors: [error.internal] });
                 });
             },
           ],
@@ -70,14 +65,13 @@ function createModule(cronManager, Logger) {
                 abortEarly: false,
               });
               const errors = getErrors(error);
-              if (errors)
-                return res
-                  .status(400)
-                  .json({ status: 'error', errors: errors });
+              if (errors) {
+                return res.status(400).json({ status: 'error', errors });
+              }
 
-              let jobId = req.params.id || null;
+              const jobId = req.params.id || null;
 
-              let jobSpec = {
+              const jobSpec = {
                 time: req.body.time,
                 timezone: req.body.timezone || 'UTC',
                 name: req.body.name,
@@ -95,7 +89,7 @@ function createModule(cronManager, Logger) {
               let existingJob = null;
               try {
                 existingJob = await cronManager.deleteJob(
-                  req.tenant /*tenant*/,
+                  req.tenant /* tenant */,
                   jobId
                 );
               } catch (error) {
@@ -103,7 +97,7 @@ function createModule(cronManager, Logger) {
                   logger.debug(`Something unexpected happened (${error})`);
                   return res
                     .status(500)
-                    .json({ status: 'error', errors: [errors.internal] });
+                    .json({ status: 'error', errors: [error.internal] });
                 }
               }
 
@@ -113,7 +107,7 @@ function createModule(cronManager, Logger) {
                   `Replacing job ${JSON.stringify(
                     existingJob
                   )} by ${JSON.stringify({
-                    jobId: jobId,
+                    jobId,
                     spec: jobSpec,
                   })}`
                 );
@@ -121,7 +115,7 @@ function createModule(cronManager, Logger) {
               } else {
                 logger.debug(
                   `Creating job ${JSON.stringify({
-                    jobId: jobId,
+                    jobId,
                     spec: jobSpec,
                   })}`
                 );
@@ -130,17 +124,17 @@ function createModule(cronManager, Logger) {
 
               // step 2: Create job with the given identifier
               cronManager
-                .createJob(req.tenant /*tenant*/, jobSpec, jobId)
-                .then((jobId) => {
-                  return res
+                .createJob(req.tenant /* tenant */, jobSpec, jobId)
+                .then((jobId) =>
+                  res
                     .status(successReturnValue)
-                    .json({ status: 'success', jobId: jobId });
-                })
+                    .json({ status: 'success', jobId })
+                )
                 .catch((error) => {
                   logger.debug(`Something unexpected happened (${error})`);
                   return res
                     .status(500)
-                    .json({ status: 'error', errors: [errors.internal] });
+                    .json({ status: 'error', errors: [error.internal] });
                 });
             },
           ],
@@ -156,40 +150,35 @@ function createModule(cronManager, Logger) {
           method: 'get',
           middleware: [
             (req, res) => {
-              let jobId = req.params.id || null;
+              const jobId = req.params.id || null;
 
               if (jobId) {
                 cronManager
-                  .readJob(req.tenant /*tenant*/, jobId)
-                  .then((job) => {
-                    return res.status(200).json(job);
-                  })
+                  .readJob(req.tenant /* tenant */, jobId)
+                  .then((job) => res.status(200).json(job))
                   .catch((error) => {
                     if (error instanceof cron.JobNotFound) {
                       logger.debug(`Job ${jobId} not found.`);
                       return res
                         .status(404)
-                        .json({ status: 'error', errors: [errors.notfound] });
-                    } else {
-                      logger.debug(`Something unexpected happened (${error})`);
-                      return res
-                        .status(500)
-                        .json({ status: 'error', errors: [errors.internal] });
+                        .json({ status: 'error', errors: [error.notfound] });
                     }
+                    logger.debug(`Something unexpected happened (${error})`);
+                    return res
+                      .status(500)
+                      .json({ status: 'error', errors: [error.internal] });
                   });
               }
               // get(all)
               else {
                 cronManager
-                  .readAllJobs(req.tenant /*tenant*/)
-                  .then((jobs) => {
-                    return res.status(200).json(jobs);
-                  })
+                  .readAllJobs(req.tenant /* tenant */)
+                  .then((jobs) => res.status(200).json(jobs))
                   .catch((error) => {
                     logger.debug(`Something unexpected happened (${error})`);
                     return res
                       .status(500)
-                      .json({ status: 'error', errors: [errors.internal] });
+                      .json({ status: 'error', errors: [error.internal] });
                   });
               }
             },
@@ -206,41 +195,36 @@ function createModule(cronManager, Logger) {
           method: 'delete',
           middleware: [
             (req, res) => {
-              let jobId = req.params.id || null;
+              const jobId = req.params.id || null;
 
               // delete one
               if (jobId) {
                 cronManager
-                  .deleteJob(req.tenant /*tenant*/, jobId)
-                  .then(() => {
-                    return res.status(204).send();
-                  })
+                  .deleteJob(req.tenant /* tenant */, jobId)
+                  .then(() => res.status(204).send())
                   .catch((error) => {
                     if (error instanceof cron.JobNotFound) {
                       logger.debug(`Job ${jobId} not found.`);
                       return res
                         .status(404)
-                        .json({ status: 'error', errors: [errors.notfound] });
-                    } else {
-                      logger.debug(`Something unexpected happened (${error})`);
-                      return res
-                        .status(500)
-                        .json({ status: 'error', errors: [errors.internal] });
+                        .json({ status: 'error', errors: [error.notfound] });
                     }
+                    logger.debug(`Something unexpected happened (${error})`);
+                    return res
+                      .status(500)
+                      .json({ status: 'error', errors: [error.internal] });
                   });
               }
               // delete all
               else {
                 cronManager
-                  .deleteAllJobs(req.tenant /*tenant*/)
-                  .then(() => {
-                    return res.status(204).send();
-                  })
+                  .deleteAllJobs(req.tenant /* tenant */)
+                  .then(() => res.status(204).send())
                   .catch((error) => {
                     logger.debug(`Something unexpected happened (${error})`);
                     return res
                       .status(500)
-                      .json({ status: 'error', errors: [errors.internal] });
+                      .json({ status: 'error', errors: [error.internal] });
                   });
               }
             },
