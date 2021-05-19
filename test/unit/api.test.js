@@ -14,6 +14,7 @@ const mockDefaultConfig = {
 };
 
 const { Logger } = require('@dojot/microservice-sdk');
+
 jest.mock('@dojot/microservice-sdk', () => ({
   ConfigManager: {
     getConfig: jest.fn(() => mockDefaultConfig),
@@ -25,7 +26,7 @@ jest.mock('@dojot/microservice-sdk', () => ({
   Logger: jest.fn(() => mockLogger),
 }));
 
-const routes = require('./../../app/api')(mockMockronManager, Logger);
+const routes = require('../../app/api')(mockMockronManager, Logger);
 
 describe('CreateModule', () => {
   it('should  successfully return an array of routes', () => {

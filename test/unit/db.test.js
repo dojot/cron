@@ -1,32 +1,39 @@
-const mockProcess = require('jest-mock-process');
-
-const mockExit = mockProcess.mockProcessExit();
-
 // MOCKS
-const mock = {
-  ConfigManager: {
-    db: {
-      'mongodb.url': ' ',
-      aptions: {},
-    },
+const mockConfigManager = {
+  db: {
+    'mongodb.url': ' ',
   },
-  Logger: {
-    debug: jest.fn(),
-    error: jest.fn(),
-    info: jest.fn(),
-    warn: jest.fn(),
-  },
-  ServiceStateManager: {
-    registerService: jest.fn(),
-    registerShutdownHandler: jest.fn(),
-    addHealthChecker: jest.fn(),
-    signalNotReady: jest.fn(),
-    signalReady: jest.fn(),
-  },
-  Client: {
-    close: jest.fn(),
-  },
+  aptions: {},
+  healthChecker: { 'kafka.interval.ms': 30000 },
 };
+
+const mockLogger = {
+  debug: jest.fn(),
+  error: jest.fn(),
+  info: jest.fn(),
+  warn: jest.fn(),
+};
+
+const mockClient = {
+  isConnected: jest.fn(),
+};
+
+const mockAddHealthChecker = jest.fn();
+
+const mockRegisterShutdownHandler = jest.fn();
+
+const mockSignalReady = jest.fn();
+
+const mockSignalNotReady = jest.fn();
+
+const serviceStateMock = {
+  addHealthChecker: mockAddHealthChecker,
+  registerShutdownHandler: mockRegisterShutdownHandler,
+  signalReady: mockSignalReady,
+  signalNotReady: mockSignalNotReady,
+};
+
+jest.mock('../../app/Utils');
 
 jest.mock('mongodb');
 const {
@@ -36,31 +43,31 @@ const {
 jest.mock('../../app/Utils');
 
 jest.mock('@dojot/microservice-sdk', () => ({
-  Logger: jest.fn(() => mock.Logger),
+  Logger: jest.fn(() => mockLogger),
   ConfigManager: {
-    getConfig: jest.fn(() => mock.ConfigManager),
+    getConfig: jest.fn(() => mockConfigManager),
     transformObjectKeys: jest.fn(),
   },
 }));
 
-const { DB } = require('./../../app/db');
+const { DB } = require('../../app/db');
 
 describe('DB', () => {
   let db;
 
   beforeEach(() => {
-    db = new DB(mock.ServiceStateManager);
+    db = new DB();
 
     jest.clearAllMocks();
   });
 
   afterAll(() => {
-    mockExit.mockRestore();
+    jest.clearAllMocks();
   });
 
   describe('constructor', () => {
     it('should successfully create a new instance', () => {
-      expect(db.config).toEqual(mock.ConfigManager);
+      expect(db.config).toEqual(mockConfigManager);
       expect(db.databases).toBeDefined();
       expect(db.logger).toBeDefined();
     });
@@ -68,7 +75,7 @@ describe('DB', () => {
 
   describe('init', () => {
     it('should correctly initialize', async () => {
-      db.init();
+      db.init(serviceStateMock);
 
       expect(connect).toHaveBeenCalled();
       expect(db.logger).toBeDefined();
@@ -78,8 +85,9 @@ describe('DB', () => {
       const reason = 'error';
 
       try {
-        db.init();
+        db.init(serviceStateMock);
       } catch (error) {
+        // eslint-disable-next-line jest/no-try-expect
         expect(error).toEqual(reason);
       }
     });
@@ -88,30 +96,55 @@ describe('DB', () => {
   describe('healthChecker', () => {
     let signalReady;
     let signalNotReady;
+    let status;
 
     afterAll(() => {
-      mockExit.mockRestore();
-    });
-
-    beforeEach(() => {
-      signalReady = jest.fn();
-      signalNotReady = jest.fn();
-      db = new DB(mock.ServiceStateManager);
       jest.clearAllMocks();
     });
 
-    it('should signal as not ready - is not connected to Kafka', async () => {
-      db.init();
-      await db.healthChecker(signalReady, signalNotReady);
-
-      expect(signalNotReady).toHaveBeenCalled();
+    beforeEach(async () => {
+      jest.clearAllMocks();
+      signalReady = jest.fn();
+      signalNotReady = jest.fn();
+      status = jest.spyOn(db, 'status');
+      connect.mockReturnValue(mockClient);
+      await db.init(serviceStateMock);
     });
 
-    it('should signal as not ready - Promise was rejected', async () => {
-      db.init();
-      await db.healthChecker(signalReady, signalNotReady);
+    it('should signal as ready - is connected to Kafka', async () => {
+      status.mockReturnValue(Promise.resolve({ connected: true }));
+      // await db.init(serviceStateMock);
+      db.createHealthChecker();
 
+      const callback = mockAddHealthChecker.mock.calls[0][1];
+      await callback(signalReady, signalNotReady);
+
+      expect(mockAddHealthChecker).toHaveBeenCalled();
+      expect(signalNotReady).not.toHaveBeenCalled();
+      expect(signalReady).toHaveBeenCalled();
+    });
+
+    it('should signal as not ready - is not connected to Kafka', async () => {
+      status.mockReturnValue(Promise.resolve({ connected: false }));
+
+      db.createHealthChecker();
+
+      const callback = mockAddHealthChecker.mock.calls[0][1];
+      await callback(signalReady, signalNotReady);
+
+      expect(mockAddHealthChecker).toHaveBeenCalled();
+      expect(signalReady).not.toHaveBeenCalled();
       expect(signalNotReady).toHaveBeenCalled();
+    });
+  });
+
+  describe('shutdownHandler', () => {
+    it('should call the disconnect function from the producer', async () => {
+      await db.init(serviceStateMock);
+      await db.registerShutdown();
+      const callback = mockRegisterShutdownHandler.mock.calls[0][0];
+      callback();
+      expect(mockRegisterShutdownHandler).toHaveBeenCalled();
     });
   });
 });
