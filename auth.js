@@ -36,9 +36,14 @@ function authParse(req, res, next) {
   const tokenData = JSON.parse(b64decode(token[1]));
 
   // to ensure backward compatibility
-  if(tokenData.service){
+  if (tokenData.username) {
     req.user = tokenData.username;
-    req.userid = tokenData.userid;
+  } else if (tokenData.preferred_username) {
+    req.user = tokenData.preferred_username;
+  }
+
+  // to ensure backward compatibility
+  if (tokenData.service) {
     req.service = tokenData.service;
   } else if (tokenData.iss) {
     req.service = tokenData.iss.substring(tokenData.iss.lastIndexOf('/') + 1);
@@ -51,12 +56,6 @@ function authEnforce(req, res, next) {
   if (req.path.match(/(\.png|svg$)|(keymap\.json$)/)){
     logger.debug(`will ignore ${req.path}`);
     return next();
-  }
-
-  if (req.user === undefined || req.user.trim() === "" ) {
-    // valid token must be supplied
-    logger.error(`Got invalid request: user is not defined in token: ${req.get('authorization')}`);
-    return res.status(401).send(new UnauthorizedError());
   }
 
   if (req.service === undefined || req.service.trim() === "" ) {
