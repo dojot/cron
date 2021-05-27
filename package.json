@@ -34,7 +34,7 @@
   },
   "homepage": "https://github.com/dojot/cron#readme",
   "dependencies": {
-    "@dojot/dojot-module": "^0.2.1",
+    "@dojot/dojot-module": "^0.2.2",
     "@dojot/dojot-module-logger": "^0.1.0",
     "@dojot/healthcheck": "^0.1.0",
     "axios": "^0.18.0",
