@@ -1,6 +1,6 @@
 {
   "name": "@dojot/cron",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "description": "Scheduler for events/notifications to be emitted to other dojot's microservices",
   "main": "server.js",
   "scripts": {
