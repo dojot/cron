@@ -84,7 +84,6 @@
   "devDependencies": {
     "@bbc/apache2-license-checker": "^1.1.4",
     "axios-mock-adapter": "^1.19.0",
-    "babel-eslint": "^10.1.0",
     "eslint": "^6.8.0",
     "eslint-config-airbnb-base": "^14.1.0",
     "eslint-config-prettier": "^8.3.0",

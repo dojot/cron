@@ -1,41 +1,29 @@
 {
   "env": {
+      "jest": true,
       "es6": true,
-      "node": true,
-      "jest": true
+      "node": true
   },
+  "plugins": [
+      "security",
+      "security-node",
+      "prettier"
+  ],
   "extends": [
       "airbnb-base",
       "plugin:security/recommended",
-      "plugin:jest/recommended",
+      "plugin:security-node/recommended",
       "plugin:prettier/recommended"
   ],
-  "globals": {
-      "Atomics": "readonly",
-      "SharedArrayBuffer": "readonly"
-  },
-  "parserOptions": {
-      "ecmaVersion": 2018,
-      "parser": "babel-eslint"
-  },
   "rules": {
-      "jest/no-disabled-tests": "warn",
-      "jest/no-focused-tests": "error",
-      "jest/no-identical-title": "error",
-      "jest/prefer-to-have-length": "warn",
-      "jest/valid-expect": "error",
-      "no-restricted-syntax": [
-        "error",
-        "BinaryExpression[operator='in']"
-      ],
       /* the rule import/no-unresolved is needed to avoid problems with the codefactor */
       "import/no-unresolved": "off",
       /* Workaround:
-    Codefactor is using a newer version of airbnb-base, and it is not
-    availabe at NPM yet. So this line forces codefactor to keep the
-    expected behavior for the rule 'no-multiple-empty-lines' according
-    to airbnb-base version v14.x.x.
-    It should be removed when we upgrade to v18.2.0 */
+       Codefactor is using a newer version of airbnb-base, and it is not
+       availabe at NPM yet. So this line forces codefactor to keep the
+       expected behavior for the rule 'no-multiple-empty-lines' according
+       to airbnb-base version v14.x.x.
+       It should be removed when we upgrade to v18.2.0 */
       "no-multiple-empty-lines": [
           "error",
           {
@@ -44,13 +32,6 @@
               "maxEOF": 0
           }
       ],
-      "prettier/prettier": "error",
-      "arrow-body-style": "off",
-      "prefer-arrow-callback": "off"
-  },
-  "plugins": [
-      "security",
-      "jest",
-      "prettier"
-  ]
+      "prettier/prettier": "error"
+  }
 }
