@@ -33,7 +33,7 @@ jobs:
   docker-hub:
     needs: npm-build
     name: Build and Publish image to DockerHUb
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-18.04
     # If this is a PR, it won't run
     if: contains(github.ref, 'refs/pull/') == false
     steps:
@@ -61,7 +61,7 @@ jobs:
   gh-pages:
     needs: docker-hub
     name: Generate documentation and Publish in gh-pages
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-18.04
     if: contains(github.ref, 'refs/pull/') == false # if this a PR doesn't run
     steps:
 
