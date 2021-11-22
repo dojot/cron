@@ -5,6 +5,7 @@ const {
   Logger,
 } = require('@dojot/microservice-sdk');
 const util = require('util');
+const { default: axios } = require('axios');
 const { CronJob } = require('cron');
 const { v4: uuidv4 } = require('uuid');
 const { HttpHandler } = require('./http');
@@ -53,11 +54,17 @@ class CronManager {
     this.serviceName = 'kafka-consumer';
   }
 
-  _makeKey(tenant, jobId) {
+  static makeKey(tenant, jobId) {
     return `${tenant}:${jobId}`;
   }
 
-  _setTenant(tenant) {
+  static createAxios() {
+    return axios.create({
+      timeout: 12000,
+    });
+  }
+
+  setTenant(tenant) {
     return new Promise((resolve, reject) => {
       // create database for this tenant if it hasn't been done yet
       this.db.createDatabase(tenant);
@@ -69,7 +76,7 @@ class CronManager {
           const cronJobSetPromises = [];
           for (const job of jobs) {
             cronJobSetPromises.push(
-              this._setCronJob(tenant, job.jobId, job.spec)
+              this.setCronJob(tenant, job.jobId, job.spec)
             );
           }
 
@@ -104,7 +111,7 @@ class CronManager {
     });
   }
 
-  _unsetTenant(tenant) {
+  unsetTenant(tenant) {
     return new Promise((resolve, reject) => {
       // stop existing jobs for the corresponding tenant
       this.db
@@ -112,7 +119,7 @@ class CronManager {
         .then((jobs) => {
           const cronJobUnsetPromises = [];
           for (const job of jobs) {
-            cronJobUnsetPromises.push(this._unsetCronJob(tenant, job.jobId));
+            cronJobUnsetPromises.push(this.unsetCronJob(tenant, job.jobId));
           }
 
           Promise.all(cronJobUnsetPromises)
@@ -164,7 +171,7 @@ class CronManager {
     });
   }
 
-  _setCronJob(tenant, jobId, jobSpec) {
+  setCronJob(tenant, jobId, jobSpec) {
     return new Promise((resolve, reject) => {
       try {
         // cron job
@@ -207,7 +214,7 @@ class CronManager {
         });
 
         // cache
-        const key = this._makeKey(tenant, jobId);
+        const key = CronManager.makeKey(tenant, jobId);
         const value = { spec: jobSpec, job };
         this.crontab.set(key, value);
 
@@ -231,9 +238,9 @@ class CronManager {
     });
   }
 
-  _unSetCronJob(tenant, jobId) {
+  unSetCronJob(tenant, jobId) {
     return new Promise((resolve, reject) => {
-      const key = this._makeKey(tenant, jobId);
+      const key = CronManager.makeKey(tenant, jobId);
       const value = this.crontab.get(key);
       if (value) {
         value.job.stop();
@@ -290,6 +297,15 @@ class CronManager {
         'Communication with database (mongoDB) was established.'
       );
 
+      const api = CronManager.createAxios();
+      const tenants = await api
+        .get('http://auth:5000/admin/tenants')
+        .then((response) => response.data.tenants);
+
+      for (const tenant of tenants) {
+        this.setTenant(tenant);
+      }
+
       const topic = RegExp(
         `^.+${this.config.dojot['subjects.tenancy'].replace(/\./g, '\\.')}`
       );
@@ -307,17 +323,17 @@ class CronManager {
                   `CREATE - missing tenant. Received data: ${data.value.toString()}`
                 );
               } else {
-                await this._setTenant(tenant);
+                await this.setTenant(tenant);
               }
               break;
             case 'DELETE':
-              if (this._unsetTenant) {
+              if (this.unsetTenant) {
                 if (!tenant) {
                   this.logger.warn(
                     `DELETE - missing tenant. Received data: ${data.value.toString()}`
                   );
                 } else {
-                  await this._unsetTenant(tenant);
+                  await this.unsetTenant(tenant);
                 }
               } else {
                 this.logger.debug(
@@ -397,22 +413,22 @@ class CronManager {
     });
   }
 
-  createJob(tenant, jobSpec, jobId = null) {
+  createJob(tenant, jobSpec, id = null) {
     return new Promise((resolve, reject) => {
       // job id
-      const _jobId = jobId || uuidv4();
+      const jobId = id || uuidv4();
 
       // db -job
       const dbEntry = {
-        jobId: _jobId,
+        jobId,
         spec: jobSpec,
       };
       this.db
         .create(tenant, dbEntry)
         .then(() => {
-          this._setCronJob(tenant, _jobId, jobSpec)
+          this.setCronJob(tenant, jobId, jobSpec)
             .then(() => {
-              resolve(_jobId);
+              resolve(jobId);
             })
             .catch((error) => {
               this.logger.debug(`Couldn't set cron job (${error}).`);
@@ -430,7 +446,7 @@ class CronManager {
 
   readJob(tenant, jobId) {
     return new Promise((resolve, reject) => {
-      const key = this._makeKey(tenant, jobId);
+      const key = CronManager.makeKey(tenant, jobId);
       const value = this.crontab.get(key);
       // found
       if (value) {
@@ -443,12 +459,12 @@ class CronManager {
     });
   }
 
-  readAllJobs(tenant) {
+  readAllJobs(tenantJob) {
     return new Promise((resolve) => {
       const jobs = [];
       for (const [key, value] of this.crontab) {
-        const [_tenant, jobId] = key.split(':');
-        if (_tenant === tenant) {
+        const [tenant, jobId] = key.split(':');
+        if (tenantJob === tenant) {
           jobs.push({ jobId, spec: value.spec });
         }
       }
@@ -458,14 +474,14 @@ class CronManager {
 
   deleteJob(tenant, jobId) {
     // promise
-    return this._unSetCronJob(tenant, jobId);
+    return this.unSetCronJob(tenant, jobId);
   }
 
-  deleteAllJobs(tenant) {
+  deleteAllJobs(tenantJob) {
     const deleteJobPromises = [];
     for (const [key] of this.crontab) {
-      const [_tenant, jobId] = key.split(':');
-      if (_tenant === tenant) {
+      const [tenant, jobId] = key.split(':');
+      if (tenantJob === tenant) {
         deleteJobPromises.push(this.deleteJob(tenant, jobId));
       }
     }

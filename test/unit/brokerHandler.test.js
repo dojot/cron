@@ -1,4 +1,3 @@
-/* eslint-disable jest/no-try-expect */
 const { BrokerHandler } = require('../../app/broker');
 
 let mockShouldResolve;

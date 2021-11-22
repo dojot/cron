@@ -1,10 +1,10 @@
-# InfluxDB Storer
+# Cron
 
 The **Cron** is a dojot's microservice that allows you to schedule events to be emitted to other microservices.
 
 ## **Table of Contents**
 
-- [InfluxDB Storer](#influxdb-storer)
+- [Cron](#cron)
   - [**Table of Contents**](#table-of-contents)
   - [Overview](#overview)
     - [Dojot's messages from Kafka topics](#dojots-messages-from-kafka-topics)
