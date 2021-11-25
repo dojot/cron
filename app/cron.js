@@ -28,7 +28,7 @@ class InternalError extends Error {
 // ... Errors
 
 class CronManager {
-  constructor(serviceStateManager) {
+  constructor(serviceStateManager, tenantService) {
     if (!serviceStateManager) {
       throw new Error('no ServiceStateManager instance was passed');
     }
@@ -49,6 +49,8 @@ class CronManager {
 
     this.serviceState = serviceStateManager;
 
+    this.tenantService = tenantService;
+
     this.wasInitialized = false;
 
     this.serviceName = 'kafka-consumer';
@@ -64,7 +66,7 @@ class CronManager {
     });
   }
 
-  setTenant(tenant) {
+  createTenantManagment(tenant) {
     return new Promise((resolve, reject) => {
       // create database for this tenant if it hasn't been done yet
       this.db.createDatabase(tenant);
@@ -111,7 +113,7 @@ class CronManager {
     });
   }
 
-  unsetTenant(tenant) {
+  removeTenantManagment(tenant) {
     return new Promise((resolve, reject) => {
       // stop existing jobs for the corresponding tenant
       this.db
@@ -297,13 +299,10 @@ class CronManager {
         'Communication with database (mongoDB) was established.'
       );
 
-      const api = CronManager.createAxios();
-      const tenants = await api
-        .get('http://auth:5000/admin/tenants')
-        .then((response) => response.data.tenants);
+      const tenants = await this.tenantService.getTenants();
 
       for (const tenant of tenants) {
-        this.setTenant(tenant);
+        this.createTenantManagment(tenant);
       }
 
       const topic = RegExp(
@@ -323,17 +322,17 @@ class CronManager {
                   `CREATE - missing tenant. Received data: ${data.value.toString()}`
                 );
               } else {
-                await this.setTenant(tenant);
+                await this.createTenantManagment(tenant);
               }
               break;
             case 'DELETE':
-              if (this.unsetTenant) {
+              if (this.removeTenantManagment) {
                 if (!tenant) {
                   this.logger.warn(
                     `DELETE - missing tenant. Received data: ${data.value.toString()}`
                   );
                 } else {
-                  await this.unsetTenant(tenant);
+                  await this.removeTenantManagment(tenant);
                 }
               } else {
                 this.logger.debug(
