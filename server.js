@@ -6,6 +6,7 @@ const {
 } = require('@dojot/microservice-sdk');
 const camelCase = require('lodash.camelcase');
 const { killApplication } = require('./app/Utils');
+const TenantService = require('./app/TenantService');
 const { CronManager } = require('./app/cron');
 
 const userConfigFile =
@@ -28,6 +29,8 @@ const serviceStateManager = new ServiceStateManager({
   lightship: transformObjectKeys(config.lightship, camelCase),
 });
 
+const tenantService = new TenantService(config.url.tenants);
+
 process.on('unhandledRejection', (reason) => {
   logger.error(
     `Unhandled Rejection at: ${reason.stack || reason}. Bailing out!!`
@@ -41,7 +44,7 @@ serviceStateManager.registerService('kafka-producer');
 serviceStateManager.registerService('db-cron');
 serviceStateManager.registerService('server');
 
-const cronManager = new CronManager(serviceStateManager);
+const cronManager = new CronManager(serviceStateManager, tenantService);
 
 const routes = require('./app/api')(cronManager, Logger);
 
