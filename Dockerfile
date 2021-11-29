@@ -1,10 +1,10 @@
 #
 # ---- Base Image ----
-FROM node:12.22-alpine AS base
+FROM node:12.21-alpine AS base
 
 WORKDIR /opt/cron
 
-RUN apk --no-cache add \
+RUN apk add --update --no-cache\
   bash \
   ca-certificates \
   cyrus-sasl-dev \
