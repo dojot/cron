@@ -279,6 +279,9 @@ class CronManager {
     }
     this.logger.info('Initializing cron service ...');
 
+    this.createHealthChecker();
+    this.registerShutdown();
+
     try {
       this.consumer = new Consumer({
         ...this.config.sdkConsumer,
@@ -357,8 +360,6 @@ class CronManager {
 
       this.consumer.registerCallback(topic, tenantCallback);
 
-      this.createHealthChecker();
-      this.registerShutdown();
       this.wasInitialized = true;
       this.logger.info('... Kafka Consumer was initialized');
     } catch (error) {
