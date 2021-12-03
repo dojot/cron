@@ -51,6 +51,6 @@ ENTRYPOINT ["/sbin/tini", "--"]
 
 CMD ["npm", "start"]
 
-HEALTHCHECK --start-period=5s --interval=30s --timeout=5s --retries=3 \
-  CMD curl -s "http://localhost:9000/health" | grep -q "SERVER_IS_READY"
+HEALTHCHECK --start-period=2m --interval=30s --timeout=10s --retries=3 \
+  CMD curl -f http://localhost:9000/health || exit 1
 

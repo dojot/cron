@@ -23,6 +23,6 @@ const objectRenameKey = (obj, oldKey, newKey) => {
  * Kills the program process.
  * @function killApplication
  */
-const killApplication = () => process.kill(process.pid);
+const killApplication = () => process.kill(process.pid, 'SIGTERM');
 
 module.exports = { objectRenameKey, killApplication };
