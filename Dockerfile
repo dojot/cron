@@ -1,10 +1,10 @@
 #
 # ---- Base Image ----
-FROM node:12.22-alpine AS base
+FROM node:12.21-alpine AS base
 
 WORKDIR /opt/cron
 
-RUN apk --no-cache add \
+RUN apk add --update --no-cache\
   bash \
   ca-certificates \
   cyrus-sasl-dev \
@@ -51,6 +51,6 @@ ENTRYPOINT ["/sbin/tini", "--"]
 
 CMD ["npm", "start"]
 
-HEALTHCHECK --start-period=5s --interval=30s --timeout=5s --retries=3 \
-  CMD curl -s "http://localhost:9000/health" | grep -q "SERVER_IS_READY"
+HEALTHCHECK --start-period=2m --interval=30s --timeout=10s --retries=3 \
+  CMD curl -f http://localhost:9000/health || exit 1
 

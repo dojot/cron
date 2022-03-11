@@ -87,7 +87,6 @@ describe('DB', () => {
       try {
         db.init(serviceStateMock);
       } catch (error) {
-        // eslint-disable-next-line jest/no-try-expect
         expect(error).toEqual(reason);
       }
     });
