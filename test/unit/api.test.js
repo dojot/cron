@@ -26,7 +26,7 @@ jest.mock('@dojot/microservice-sdk', () => ({
   Logger: jest.fn(() => mockLogger),
 }));
 
-const routes = require('../../app/api')(mockMockronManager, Logger);
+const routes = require('../../src/app/api')(mockMockronManager, Logger);
 
 describe('CreateModule', () => {
   it('should  successfully return an array of routes', () => {

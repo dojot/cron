@@ -1,7 +1,7 @@
 /* eslint-disable consistent-return */
-const joiSchema = require('../schemas/joiSchema');
-const { getErrors } = require('../schemas/errors');
-const cron = require('./cron');
+const joiSchema = require('../../schemas/joiSchema');
+const { getErrors } = require('../../schemas/errors');
+const cron = require('../service/cron-manager');
 
 function createModule(cronManager, Logger) {
   const logger = new Logger('api');
@@ -35,7 +35,7 @@ function createModule(cronManager, Logger) {
               };
 
               cronManager
-                .createJob(req.tenant /* tenant */, jobSpec)
+                .createJob(req.tenant.id /* tenant */, jobSpec)
                 .then((jobId) =>
                   res.status(201).json({ status: 'success', jobId })
                 )
@@ -87,7 +87,7 @@ function createModule(cronManager, Logger) {
               let existingJob = null;
               try {
                 existingJob = await cronManager.deleteJob(
-                  req.tenant /* tenant */,
+                  req.tenant.id /* tenant */,
                   jobId
                 );
               } catch (e) {
@@ -122,7 +122,7 @@ function createModule(cronManager, Logger) {
 
               // step 2: Create job with the given identifier
               cronManager
-                .createJob(req.tenant /* tenant */, jobSpec, jobId)
+                .createJob(req.tenant.id /* tenant */, jobSpec, jobId)
                 .then((jId) =>
                   res
                     .status(successReturnValue)
@@ -152,7 +152,7 @@ function createModule(cronManager, Logger) {
 
               if (jobId) {
                 cronManager
-                  .readJob(req.tenant /* tenant */, jobId)
+                  .readJob(req.tenant.id /* tenant */, jobId)
                   .then((job) => res.status(200).json(job))
                   .catch((error) => {
                     if (error instanceof cron.JobNotFound) {
@@ -170,7 +170,7 @@ function createModule(cronManager, Logger) {
               // get(all)
               else {
                 cronManager
-                  .readAllJobs(req.tenant /* tenant */)
+                  .readAllJobs(req.tenant.id /* tenant */)
                   .then((jobs) => res.status(200).json(jobs))
                   .catch((error) => {
                     logger.debug(`Something unexpected happened (${error})`);
@@ -198,7 +198,7 @@ function createModule(cronManager, Logger) {
               // delete one
               if (jobId) {
                 cronManager
-                  .deleteJob(req.tenant /* tenant */, jobId)
+                  .deleteJob(req.tenant.id /* tenant */, jobId)
                   .then(() => res.status(204).send())
                   .catch((error) => {
                     if (error instanceof cron.JobNotFound) {
@@ -216,7 +216,7 @@ function createModule(cronManager, Logger) {
               // delete all
               else {
                 cronManager
-                  .deleteAllJobs(req.tenant /* tenant */)
+                  .deleteAllJobs(req.tenant.id /* tenant */)
                   .then(() => res.status(204).send())
                   .catch((error) => {
                     logger.debug(`Something unexpected happened (${error})`);

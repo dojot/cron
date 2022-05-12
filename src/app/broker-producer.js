@@ -4,7 +4,7 @@ const {
   Kafka: { Producer },
   Logger,
 } = require('@dojot/microservice-sdk');
-const { killApplication } = require('./Utils');
+const { killApplication } = require('../Utils');
 
 // Errors ...
 class InitializationFailed extends Error {
@@ -32,7 +32,7 @@ class InternalError extends Error {
 }
 // ... Errors
 
-class BrokerHandler {
+class BrokerProducer {
   constructor() {
     this.config = getConfig('CRON');
     this.allowedSubjects = this.config.actions['broker.allowed.subjects'];
@@ -145,18 +145,22 @@ class BrokerHandler {
         this.logger.debug(
           `Trying to send message to kafka topic ${kafkaTopic}...`
         );
-        this.producer.produce(kafkaTopic, deviceDataMessage).then(() => {
-          this.logger.debug(
-            `Successfully sent message to Kafka in ${kafkaTopic}`
-          );
-        });
-
-        this.logger.debug(
-          `Published message ${JSON.stringify(req.message)} to ${tenant}/${
-            req.subject
-          }`
-        );
-        resolve();
+        this.producer
+          .produce(kafkaTopic, deviceDataMessage)
+          .then(() => {
+            this.logger.debug(
+              `Successfully sent message to Kafka in ${kafkaTopic}`
+            );
+            this.logger.debug(
+              `Published message ${JSON.stringify(req.message)} to ${tenant}/${
+                req.subject
+              }`
+            );
+            resolve();
+          })
+          .catch((error) => {
+            reject(error);
+          });
         return;
       } catch (error) {
         this.logger.debug(
@@ -177,5 +181,5 @@ module.exports = {
   InvalidTenant,
   InvalidSubject,
   InternatlError: InternalError,
-  BrokerHandler,
+  BrokerProducer,
 };

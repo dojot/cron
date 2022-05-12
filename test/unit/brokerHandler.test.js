@@ -1,4 +1,4 @@
-const { BrokerHandler } = require('../../app/broker');
+const { BrokerProducer } = require('../../src/app/broker-producer');
 
 let mockShouldResolve;
 let resolveMock;
@@ -80,13 +80,13 @@ jest.mock('@dojot/microservice-sdk', () => ({
   },
 }));
 
-jest.mock('../../app/Utils');
+jest.mock('../../src/Utils');
 
 describe('BrokerHandler', () => {
   let brokerHandler;
 
   beforeEach(async () => {
-    brokerHandler = new BrokerHandler();
+    brokerHandler = new BrokerProducer();
     jest.clearAllMocks();
   });
 
@@ -141,18 +141,23 @@ describe('BrokerHandler', () => {
     });
 
     it('should not send the message - rejected Promise', async () => {
+      expect.assertions(3);
       mockShouldResolve = false;
 
       await brokerHandler.init(serviceStateMock);
-      brokerHandler.send('test', fakeMessage);
+      try {
+        await brokerHandler.send('test', fakeMessage);
+      } catch (error) {
+        expect(error).toBeDefined();
+      }
 
       expect(brokerHandler.producer.produce).toHaveBeenCalled();
       expect(rejectMock).toHaveBeenCalled();
     });
 
-    it('should not send the message - malformed message', () => {
+    it('should not send the message - malformed message', async () => {
       try {
-        brokerHandler.send('test', 'error format');
+        await brokerHandler.send('test', 'error format');
       } catch (error) {
         expect(error).toBeDefined();
       } finally {

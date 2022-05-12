@@ -1,13 +1,12 @@
-const axios = require('axios');
-const MockAdapter = require('axios-mock-adapter');
-const { HttpHandler } = require('../../app/http');
-
 const mockLogger = {
   debug: jest.fn(),
   error: jest.fn(),
   info: jest.fn(),
   warn: jest.fn(),
 };
+
+const mockAxios = jest.fn();
+jest.mock('axios', () => mockAxios);
 
 const mockDefaultConfig = {
   actions: {},
@@ -26,11 +25,26 @@ jest.mock('@dojot/microservice-sdk', () => ({
 
 jest.mock('mongodb');
 
+const { HttpHandler } = require('../../src/external/http-handler');
+
+const tenant = {
+  id: 'tenant',
+  session: {
+    getTokenSet: () => ({
+      access_token: 'access_token',
+    }),
+  },
+};
+
+const mockTenantManager = {
+  findTenant: () => tenant,
+};
+
 describe('HttpHandler', () => {
   let httpHandler;
 
   beforeEach(() => {
-    httpHandler = new HttpHandler();
+    httpHandler = new HttpHandler(mockTenantManager);
   });
 
   describe('constructor', () => {
@@ -41,16 +55,25 @@ describe('HttpHandler', () => {
   });
 
   describe('Send', () => {
-    it('should  successfully send HTTP request', () => {
-      const mock = new MockAdapter(axios);
-      const data = { response: true };
-      mock
-        .onGet('https://us-central1-hutoma-backend.cloudfunctions.net/chat')
-        .reply(200, data);
+    it('should  successfully send external HTTP request', async () => {
+      expect.assertions(1);
+      const fakeResponse = { data: { response: true } };
+      mockAxios.mockResolvedValue(fakeResponse);
+      const request = { internal: false };
 
-      httpHandler.send(0, 'any').then((response) => {
-        expect(response).toEqual(data);
-      });
+      await httpHandler.send(0, request);
+      expect(fakeResponse).toEqual(fakeResponse);
+    });
+
+    it('should successfully send internal HTTP request', async () => {
+      expect.assertions(2);
+      const fakeResponse = { data: { response: true } };
+      mockAxios.mockResolvedValue(fakeResponse);
+      const request = { headers: {}, internal: true };
+
+      await httpHandler.send(tenant, request);
+      expect(request.headers.authorization).toEqual('Bearer access_token');
+      expect(fakeResponse).toEqual(fakeResponse);
     });
   });
 });

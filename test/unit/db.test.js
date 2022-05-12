@@ -16,6 +16,7 @@ const mockLogger = {
 
 const mockClient = {
   isConnected: jest.fn(),
+  close: jest.fn(),
 };
 
 const mockAddHealthChecker = jest.fn();
@@ -33,14 +34,14 @@ const serviceStateMock = {
   signalNotReady: mockSignalNotReady,
 };
 
-jest.mock('../../app/Utils');
+jest.mock('../../src/Utils');
 
 jest.mock('mongodb');
 const {
   MongoClient: { connect },
 } = require('mongodb');
 
-jest.mock('../../app/Utils');
+jest.mock('../../src/Utils');
 
 jest.mock('@dojot/microservice-sdk', () => ({
   Logger: jest.fn(() => mockLogger),
@@ -50,7 +51,7 @@ jest.mock('@dojot/microservice-sdk', () => ({
   },
 }));
 
-const { DB } = require('../../app/db');
+const { DB } = require('../../src/external/db');
 
 describe('DB', () => {
   let db;
