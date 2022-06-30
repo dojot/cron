@@ -8,7 +8,7 @@ const {
   Logger,
 } = require('@dojot/microservice-sdk');
 const camelCase = require('lodash.camelcase');
-const { objectRenameKey, killApplication } = require('./Utils');
+const { objectRenameKey, killApplication } = require('../Utils');
 
 // Errors ...
 class DatabaseNotFound extends Error {

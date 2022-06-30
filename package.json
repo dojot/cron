@@ -4,11 +4,12 @@
   "description": "Scheduler for events/notifications to be emitted to other dojot's microservices",
   "main": "server.js",
   "scripts": {
-    "start": "node server.js",
-    "test": "jest",
+    "start": "node index.js",
+    "debug": "node --inspect=0.0.0.0 index.js",
+    "test": "jest ",
     "test:watch": "jest --watchAll",
     "check-licenses": "apache2-license-checker",
-    "lint": "eslint app/** test/** server.js --ext .js",
+    "lint": "eslint app/** test/** index.js --ext .js",
     "lint: fix": "eslint --fix --ext .js."
   },
   "repository": {
@@ -25,7 +26,8 @@
   "contributors": [
     "Mariane Previde",
     "Wilton Filipe Canatto",
-    "Gilmaicor Leandro"
+    "Gilmaicor Leandro",
+    "Rodrigo Aparecido Silva Maia"
   ],
   "license": "Apache-2.0",
   "licenses": [
@@ -39,7 +41,7 @@
   },
   "homepage": "https://github.com/dojot/cron#readme",
   "dependencies": {
-    "@dojot/microservice-sdk": "^0.1.15",
+    "@dojot/microservice-sdk": "^0.2.0-beta.5",
     "axios": "^0.21.4",
     "cron": "^1.8.2",
     "cron-parser": "^3.5.0",

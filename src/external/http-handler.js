@@ -22,15 +22,24 @@ class InternalError extends Error {
 // ... Errors
 
 class HttpHandler {
-  constructor() {
+  constructor(tenantManager) {
     this.logger = new Logger('http');
 
     this.config = getConfig('CRON');
+
+    this.tenantManager = tenantManager;
   }
 
-  send(tenant, req) {
+  send(tenantId, req) {
     this.logger.debug(`HTTP request - ${JSON.stringify(req)}.`);
     return new Promise((resolve, reject) => {
+      if (req.internal) {
+        const tenant = this.tenantManager.findTenant(tenantId);
+        req.headers.authorization = `Bearer ${
+          tenant.session.getTokenSet().access_token
+        }`;
+      }
+
       axios({
         method: req.method,
         headers: req.headers,
