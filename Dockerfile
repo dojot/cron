@@ -29,10 +29,10 @@ COPY package-lock.json .
 # ---- Install dependencies
 RUN npm install --only=prod
 
-COPY ./app ./app
+COPY ./src ./src
 COPY ./config ./config
 COPY ./schemas ./schemas
-COPY ./server.js ./server.js
+COPY ./index.js ./index.js
 
 FROM node:12.22-alpine
 
