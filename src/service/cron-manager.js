@@ -1,17 +1,14 @@
 /* eslint-disable no-useless-constructor */
 const {
   ConfigManager: { getConfig },
-  Kafka: { Consumer },
   Logger,
 } = require('@dojot/microservice-sdk');
 const util = require('util');
 const { default: axios } = require('axios');
 const { CronJob } = require('cron');
 const { v4: uuidv4 } = require('uuid');
-const { HttpHandler } = require('./http');
-const { BrokerHandler } = require('./broker');
-const { DB } = require('./db');
-const { killApplication } = require('./Utils');
+const { DB } = require('../external/db');
+const { killApplication } = require('../Utils');
 
 // Errors ...
 class JobNotFound extends Error {
@@ -28,7 +25,13 @@ class InternalError extends Error {
 // ... Errors
 
 class CronManager {
-  constructor(serviceStateManager, tenantService) {
+  constructor(
+    serviceStateManager,
+    httpHandler,
+    tenantManager,
+    brokerProducer,
+    brokerConsumer
+  ) {
     if (!serviceStateManager) {
       throw new Error('no ServiceStateManager instance was passed');
     }
@@ -37,19 +40,19 @@ class CronManager {
 
     this.db = new DB();
 
-    this.httpHandler = new HttpHandler();
+    this.httpHandler = httpHandler;
 
-    this.brokerHandler = new BrokerHandler();
+    this.brokerProducer = brokerProducer;
 
     this.logger = new Logger('cron');
 
     this.config = getConfig('CRON');
 
-    this.consumer = null;
+    this.brokerConsumer = brokerConsumer;
 
     this.serviceState = serviceStateManager;
 
-    this.tenantService = tenantService;
+    this.tenantManager = tenantManager;
 
     this.wasInitialized = false;
 
@@ -199,7 +202,7 @@ class CronManager {
 
           // broker action
           if (jobSpec.broker) {
-            this.brokerHandler
+            this.brokerProducer
               .send(tenant, jobSpec.broker)
               .then(() => {
                 this.logger.debug(
@@ -283,18 +286,13 @@ class CronManager {
     this.registerShutdown();
 
     try {
-      this.consumer = new Consumer({
-        ...this.config.sdkConsumer,
-        'kafka.consumer': this.config.consumer,
-        'kafka.topic': this.config.topic,
-      });
       // Establishment of communication with the kafka
-      await this.consumer.init();
+      await this.brokerConsumer.init();
       this.logger.info(
         'Communication with dojot messenger service (kafka) was established.'
       );
       // handler for broker jobs
-      await this.brokerHandler.init(this.serviceState);
+      await this.brokerProducer.init(this.serviceState);
       this.logger.info('Handler for broker jobs was initialized.');
       // database
       await this.db.init(this.serviceState);
@@ -302,10 +300,10 @@ class CronManager {
         'Communication with database (mongoDB) was established.'
       );
 
-      const tenants = await this.tenantService.getTenants();
+      const tenants = await this.tenantManager.getTenants();
 
       for (const tenant of tenants) {
-        this.createTenantManagment(tenant);
+        this.createTenantManagment(tenant.id);
       }
 
       const topic = RegExp(
@@ -317,7 +315,7 @@ class CronManager {
           const { value: payload } = data;
           this.logger.debug(`Receiving data ${payload.toString()}`);
           const payloadObj = JSON.parse(payload);
-          const { type, tenant } = payloadObj;
+          const { type, tenant, signatureKey } = payloadObj;
           switch (type) {
             case 'CREATE':
               if (!tenant) {
@@ -326,6 +324,10 @@ class CronManager {
                 );
               } else {
                 await this.createTenantManagment(tenant);
+                await this.tenantManager.create({
+                  id: tenant,
+                  signatureKey,
+                });
               }
               break;
             case 'DELETE':
@@ -336,6 +338,7 @@ class CronManager {
                   );
                 } else {
                   await this.removeTenantManagment(tenant);
+                  await this.tenantManager.remove(tenant);
                 }
               } else {
                 this.logger.debug(
@@ -358,7 +361,7 @@ class CronManager {
         }
       };
 
-      this.consumer.registerCallback(topic, tenantCallback);
+      this.brokerConsumer.registerCallback(topic, tenantCallback);
 
       this.wasInitialized = true;
       this.logger.info('... Kafka Consumer was initialized');
@@ -372,8 +375,8 @@ class CronManager {
   async finish() {
     try {
       this.wasInitialized = false;
-      await this.consumer.finish();
-      this.consumer = undefined;
+      await this.brokerConsumer.finish();
+      this.brokerConsumer = undefined;
     } catch (error) {
       this.logger.debug(
         'Error while finishing Kafka connection, going on like nothing happened'
@@ -384,9 +387,9 @@ class CronManager {
 
   createHealthChecker() {
     const healthChecker = async (signalReady, signalNotReady) => {
-      if (this.consumer) {
+      if (this.brokerConsumer) {
         try {
-          const status = await this.consumer.getStatus();
+          const status = await this.brokerConsumer.getStatus();
           if (status.connected) {
             signalReady();
           } else {

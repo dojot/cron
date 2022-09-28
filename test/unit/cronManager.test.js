@@ -40,7 +40,6 @@ const mockLogger = {
   info: jest.fn(),
   warn: jest.fn(),
 };
-
 const mockAddHealthChecker = jest.fn();
 const mockRegisterShutdownHandler = jest.fn();
 const mockSignalReady = jest.fn();
@@ -63,19 +62,19 @@ jest.mock('@dojot/microservice-sdk', () => ({
   Logger: jest.fn(() => mockLogger),
 }));
 
-jest.mock('../../app/Utils', () => ({
+jest.mock('../../src/Utils', () => ({
   killApplication: jest.fn(),
 }));
 
-const { killApplication } = require('../../app/Utils');
+const { killApplication } = require('../../src/Utils');
 
-const { CronManager } = require('../../app/cron');
+const { CronManager } = require('../../src/service/cron-manager');
 
 describe('Cron', () => {
   let cronManager;
 
   beforeEach(() => {
-    cronManager = new CronManager(serviceStateMock);
+    cronManager = new CronManager(serviceStateMock, {}, {}, {}, mockConsumer);
   });
 
   afterEach(() => {
@@ -195,7 +194,7 @@ describe('Cron', () => {
   describe('_makeKey', () => {
     it('should successfully return key', async () => {
       // eslint-disable-next-line no-underscore-dangle
-      const key = cronManager._makeKey('test', '123');
+      const key = CronManager.makeKey('test', '123');
       expect(key).toBe('test:123');
     });
   });
