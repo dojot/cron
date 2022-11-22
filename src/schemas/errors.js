@@ -44,15 +44,17 @@ const errors = {
 
 function getErrors(error) {
   try {
-    const propertyNames = Object.getOwnPropertyNames(error);
-    const property = propertyNames[0];
-    const { value } = Object.getOwnPropertyDescriptor(error, property);
-    const stringErrors = value.split('\n');
-    const arrayErros = stringErrors[0].split('Error: ');
-    const jsonErrors = arrayErros.filter(Boolean).map((x) => JSON.parse(x));
+    const arrayErrors = error.message.replace(/Error:/g, '').split(';');
+    const jsonErrors = arrayErrors.map((e) => {
+      try {
+        return JSON.parse(e);
+      } catch (_error) {
+        return { error: 100, message: e };
+      }
+    });
     return jsonErrors;
   } catch (err) {
-    return null;
+    return err;
   }
 }
 

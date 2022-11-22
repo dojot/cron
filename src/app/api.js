@@ -1,6 +1,6 @@
 /* eslint-disable consistent-return */
-const joiSchema = require('../../schemas/joiSchema');
-const { getErrors } = require('../../schemas/errors');
+const joiSchema = require('../schemas/joiSchema');
+const { getErrors } = require('../schemas/errors');
 const cron = require('../service/cron-manager');
 
 function createModule(cronManager, Logger) {
@@ -19,8 +19,9 @@ function createModule(cronManager, Logger) {
               const { error } = joiSchema.validate(req.body, {
                 abortEarly: false,
               });
-              const errors = getErrors(error);
-              if (errors) {
+
+              if (error) {
+                const errors = getErrors(error);
                 return res.status(400).json({ status: 'error', errors });
               }
 

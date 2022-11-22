@@ -42,11 +42,12 @@ const joiSchema = Joi.object({
     .max(1024)
     .error(new Error(JSON.stringify(errors.invalid.description))),
   http: Joi.object({
+    internal: Joi.boolean().required(),
     // http-url
     url: Joi.string()
       .custom((value, helper) => {
         // allowed base URLs
-        for (const baseURL of config.actions.allowedBaseURLs) {
+        for (const baseURL of config.actions['http.allowed.base.urls']) {
           if (value.startsWith(baseURL)) {
             return true;
           }
@@ -54,6 +55,7 @@ const joiSchema = Joi.object({
         return helper.message('any.invalid');
       })
       .error(new Error(JSON.stringify(errors.invalid.http.url))),
+    method: Joi.string().valid(...config.actions['http.allowed.base.methods']),
     // http-headers
     headers: Joi.any()
       .optional()
@@ -100,7 +102,7 @@ const joiSchema = Joi.object({
         return helper.message('any.invalid');
       })
       .error(new Error(JSON.stringify(errors.invalid.http.body))),
-  }).error((e) => new Error(e.join(''))),
+  }).error((e) => new Error(e.join(';'))),
   broker: Joi.object({
     // broker-subject
     subject: Joi.string()
@@ -119,8 +121,8 @@ const joiSchema = Joi.object({
         }
         return helper.message('any.invalid');
       })
-      .error(new Error(JSON.stringify(errors.invalid.broker.message))),
-  }).error((e) => new Error(e.join(''))),
-}).error((e) => new Error(e.join('')));
+      .error(new Error(JSON.stringify(errors.invalid.broker))),
+  }).error((e) => new Error(e.join(';'))),
+}).error((e) => new Error(e.join(';')));
 
 module.exports = joiSchema;

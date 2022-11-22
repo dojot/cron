@@ -10,7 +10,10 @@ const mockMockronManager = {
 };
 
 const mockDefaultConfig = {
-  actions: {},
+  actions: {
+    'http.allowed.base.methods': ['POST', 'PUT'],
+    'http.allowed.base.urls': ['url'],
+  },
 };
 
 const { Logger } = require('@dojot/microservice-sdk');

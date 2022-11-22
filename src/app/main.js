@@ -18,7 +18,7 @@ module.exports = async function createApp(config, logger) {
     lightship: transformObjectKeys(config.lightship, camelCase),
   });
 
-  const dojotClientHttp = new WebUtils.DojotClientHttp({
+  const dojotHttpClient = new WebUtils.DojotHttpClient({
     defaultClientOptions: {},
     logger,
     defaultMaxNumberAttempts: 0,
@@ -26,7 +26,7 @@ module.exports = async function createApp(config, logger) {
 
   const tenantManager = new TenantManager({
     keycloakConfig: config.keycloak,
-    dojotClientHttp,
+    dojotHttpClient,
     logger,
   });
   await tenantManager.loadTenants();
