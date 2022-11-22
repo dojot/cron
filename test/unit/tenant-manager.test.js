@@ -28,7 +28,7 @@ describe('TenantManager', () => {
   beforeEach(() => {
     tenantManager = new TenantManager({
       keycloakConfig,
-      dojotClientHttp: mockDojotClientHttp,
+      dojotHttpClient: mockDojotClientHttp,
       logger,
     });
   });

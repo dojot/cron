@@ -22,33 +22,7 @@ RUN apk add --update --no-cache\
   bsd-compat-headers \
   py-setuptools bash
 
-COPY package.json .
-COPY package-lock.json .
-
-#
-# ---- Install dependencies
-RUN npm install --only=prod
-
-COPY ./src ./src
-COPY ./config ./config
-COPY ./index.js ./index.js
-
-FROM node:12.22-alpine
-
-WORKDIR /opt/cron
-
-RUN apk --no-cache add \
-  bash \
-  libsasl \
-  lz4-libs \
-  tini \
-  curl
-
-COPY --from=base /opt/cron /opt/cron
-
-ENTRYPOINT ["/sbin/tini", "--"]
-
-CMD ["npm", "start"]
+CMD ["tail", "-f", "/dev/null"]
 
 HEALTHCHECK --start-period=2m --interval=30s --timeout=10s --retries=3 \
   CMD curl -f http://localhost:9000/health || exit 1
