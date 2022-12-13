@@ -65,6 +65,10 @@ send events to the data broker or execute a given javascript function.
                 "oneOf": [
                   "http": {
                     "type": "object",
+                    "internal": {
+                      "type": "boolean",
+                      "description": "Defines if the request happens inside dojot. Obs.: Must not pass access token in request body. "
+                    }, 
                     "properties": {
                       "method": {
                         "type": "string",
