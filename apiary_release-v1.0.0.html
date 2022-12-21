@@ -43,6 +43,10 @@ send events to the data broker or execute a given javascript function.</p>
     "<span class="hljs-attribute">oneOf</span>": <span class="hljs-value">[
       <span class="hljs-string">"http"</span>: {
         "<span class="hljs-attribute">type</span>": <span class="hljs-value"><span class="hljs-string">"object"</span></span>,
+        "<span class="hljs-attribute">internal</span>": <span class="hljs-value">{
+          "<span class="hljs-attribute">type</span>": <span class="hljs-value"><span class="hljs-string">"boolean"</span></span>,
+          "<span class="hljs-attribute">description</span>": <span class="hljs-value"><span class="hljs-string">"Defines if the request happens inside dojot. Obs.: Must not pass access token in request body. "</span>
+        </span>}</span>, 
         "<span class="hljs-attribute">properties</span>": <span class="hljs-value">{
           "<span class="hljs-attribute">method</span>": <span class="hljs-value">{
             "<span class="hljs-attribute">type</span>": <span class="hljs-value"><span class="hljs-string">"string"</span></span>,
