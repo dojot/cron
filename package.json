@@ -44,7 +44,7 @@
     "@dojot/microservice-sdk": "^0.2.2",
     "axios": "^0.21.4",
     "cron": "^1.8.2",
-    "cron-parser": "^3.5.0",
+    "cron-parser": "^4.7.0",
     "joi": "^17.4.2",
     "lodash.camelcase": "^4.3.0",
     "mongodb": "^3.7.3",
